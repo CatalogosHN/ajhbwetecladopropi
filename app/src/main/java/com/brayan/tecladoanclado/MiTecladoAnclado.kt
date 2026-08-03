@@ -76,12 +76,6 @@ class MiTecladoAnclado : InputMethodService() {
         layoutSymbols2 = view.findViewById(R.id.layout_symbols_2)
         layoutClipboard = view.findViewById(R.id.layout_clipboard)
 
-        // Botón Enter Flotante
-        val btnClipboardEnter = view.findViewById<Button>(R.id.btnClipboardEnter)
-        btnClipboardEnter?.setOnClickListener {
-            currentInputConnection?.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_ENTER))
-        }
-
         val recyclerView = view.findViewById<RecyclerView>(R.id.keyboard_recycler_view)
         val items = DataManager.loadItems(this)
         
