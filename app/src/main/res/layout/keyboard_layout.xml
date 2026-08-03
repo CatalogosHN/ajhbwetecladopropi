@@ -6,14 +6,14 @@
     android:background="#D1D5DB"
     android:paddingBottom="8dp">
 
-    <!-- 1. EL PORTAPAPELES ANCLADO (Intacto) -->
+    <!-- EL PORTAPAPELES ANCLADO -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/keyboard_recycler_view"
         android:layout_width="match_parent"
         android:layout_height="50dp"
         android:background="#F3F4F6"/>
 
-    <!-- 2. FILA DE NÚMEROS FIJA (Visible en todas las páginas) -->
+    <!-- FILA DE NÚMEROS FIJA -->
     <LinearLayout android:layout_width="match_parent" android:layout_height="50dp" android:orientation="horizontal" android:padding="2dp">
         <Button android:text="1" style="@style/KeyStyle" />
         <Button android:text="2" style="@style/KeyStyle" />
@@ -27,7 +27,6 @@
         <Button android:text="0" style="@style/KeyStyle" />
     </LinearLayout>
 
-    <!-- 3. CONTENEDOR DE PÁGINAS (Letras / Símbolos 1 / Símbolos 2) -->
     <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content">
@@ -74,8 +73,9 @@
             <LinearLayout android:layout_width="match_parent" android:layout_height="50dp" android:orientation="horizontal" android:padding="2dp">
                 <Button android:tag="MODE_SYM1" android:text="!#1" style="@style/KeyStyleAction" android:layout_weight="1.5" />
                 <Button android:id="@+id/btnMic1" android:tag="MIC" android:text="🎤" style="@style/KeyStyleAction" android:layout_weight="1" />
+                <Button android:tag="CLIPBOARD" android:text="📋" style="@style/KeyStyleAction" android:layout_weight="1" />
                 <Button android:text="," style="@style/KeyStyle" android:layout_weight="1" />
-                <Button android:tag="SPACE" android:text="Español (US)" style="@style/KeyStyleAction" android:layout_weight="4" />
+                <Button android:tag="SPACE" android:text="Español (US)" style="@style/KeyStyleAction" android:layout_weight="3" />
                 <Button android:text="." style="@style/KeyStyle" android:layout_weight="1" />
                 <Button android:tag="ENTER" android:text="↵" style="@style/KeyStyleAction" android:layout_weight="1.5" />
             </LinearLayout>
@@ -121,8 +121,9 @@
             <LinearLayout android:layout_width="match_parent" android:layout_height="50dp" android:orientation="horizontal" android:padding="2dp">
                 <Button android:tag="MODE_LETTERS" android:text="ABC" style="@style/KeyStyleAction" android:layout_weight="1.5" />
                 <Button android:id="@+id/btnMic2" android:tag="MIC" android:text="🎤" style="@style/KeyStyleAction" android:layout_weight="1" />
+                <Button android:tag="CLIPBOARD" android:text="📋" style="@style/KeyStyleAction" android:layout_weight="1" />
                 <Button android:text="," style="@style/KeyStyle" android:layout_weight="1" />
-                <Button android:tag="SPACE" android:text="Español (US)" style="@style/KeyStyleAction" android:layout_weight="4" />
+                <Button android:tag="SPACE" android:text="Español (US)" style="@style/KeyStyleAction" android:layout_weight="3" />
                 <Button android:text="." style="@style/KeyStyle" android:layout_weight="1" />
                 <Button android:tag="ENTER" android:text="↵" style="@style/KeyStyleAction" android:layout_weight="1.5" />
             </LinearLayout>
@@ -168,12 +169,12 @@
             <LinearLayout android:layout_width="match_parent" android:layout_height="50dp" android:orientation="horizontal" android:padding="2dp">
                 <Button android:tag="MODE_LETTERS" android:text="ABC" style="@style/KeyStyleAction" android:layout_weight="1.5" />
                 <Button android:id="@+id/btnMic3" android:tag="MIC" android:text="🎤" style="@style/KeyStyleAction" android:layout_weight="1" />
+                <Button android:tag="CLIPBOARD" android:text="📋" style="@style/KeyStyleAction" android:layout_weight="1" />
                 <Button android:text="," style="@style/KeyStyle" android:layout_weight="1" />
-                <Button android:tag="SPACE" android:text="Español (US)" style="@style/KeyStyleAction" android:layout_weight="4" />
+                <Button android:tag="SPACE" android:text="Español (US)" style="@style/KeyStyleAction" android:layout_weight="3" />
                 <Button android:text="." style="@style/KeyStyle" android:layout_weight="1" />
                 <Button android:tag="ENTER" android:text="↵" style="@style/KeyStyleAction" android:layout_weight="1.5" />
             </LinearLayout>
         </LinearLayout>
-
     </FrameLayout>
 </LinearLayout>
