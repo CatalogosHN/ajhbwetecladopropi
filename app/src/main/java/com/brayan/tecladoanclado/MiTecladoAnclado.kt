@@ -1,14 +1,16 @@
 package com.brayan.tecladoanclado
 
-import android.content.BroadcastReceiver
+import android.Manifest
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
-import android.content.IntentFilter
+import android.content.pm.PackageManager
 import android.inputmethodservice.InputMethodService
-import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.speech.RecognitionListener
+import android.speech.RecognizerIntent
+import android.speech.SpeechRecognizer
 import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
@@ -16,6 +18,7 @@ import android.view.ViewGroup
 import android.view.inputmethod.EditorInfo
 import android.widget.Button
 import android.widget.Toast
+import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 
@@ -23,12 +26,17 @@ class MiTecladoAnclado : InputMethodService() {
     private lateinit var adapter: PinnedAdapter
     private var isCapsOn = false
     private lateinit var clipboardManager: ClipboardManager
+    private lateinit var speechRecognizer: SpeechRecognizer
     
     // Contenedores
     private lateinit var layoutLetters: View
     private lateinit var layoutSymbols1: View
     private lateinit var layoutSymbols2: View
     private lateinit var layoutClipboard: View
+
+    private var btnMic1: Button? = null
+    private var btnMic2: Button? = null
+    private var btnMic3: Button? = null
 
     // Lógica para el borrado continuo
     private val deleteHandler = Handler(Looper.getMainLooper())
@@ -44,28 +52,10 @@ class MiTecladoAnclado : InputMethodService() {
         checkSystemClipboard()
     }
 
-    // NUEVA: Antena para recibir el texto dictado por Google
-    private val voiceReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context?, intent: Intent?) {
-            val text = intent?.getStringExtra("text")
-            if (!text.isNullOrEmpty()) {
-                currentInputConnection?.commitText("$text ", 1)
-            }
-        }
-    }
-
     override fun onCreate() {
         super.onCreate()
         clipboardManager = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
         clipboardManager.addPrimaryClipChangedListener(clipListener)
-        
-        // Encender la antena de voz
-        val filter = IntentFilter("com.brayan.tecladoanclado.VOICE_TEXT")
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(voiceReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
-        } else {
-            registerReceiver(voiceReceiver, filter)
-        }
     }
 
     override fun onCreateInputView(): View {
@@ -75,6 +65,18 @@ class MiTecladoAnclado : InputMethodService() {
         layoutSymbols1 = view.findViewById(R.id.layout_symbols_1)
         layoutSymbols2 = view.findViewById(R.id.layout_symbols_2)
         layoutClipboard = view.findViewById(R.id.layout_clipboard)
+
+        btnMic1 = view.findViewById(R.id.btnMic1)
+        btnMic2 = view.findViewById(R.id.btnMic2)
+        btnMic3 = view.findViewById(R.id.btnMic3)
+        
+        setupSpeechRecognizer()
+
+        // Botón Enter Flotante
+        val btnClipboardEnter = view.findViewById<Button>(R.id.btnClipboardEnter)
+        btnClipboardEnter?.setOnClickListener {
+            currentInputConnection?.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_ENTER))
+        }
 
         val recyclerView = view.findViewById<RecyclerView>(R.id.keyboard_recycler_view)
         val items = DataManager.loadItems(this)
@@ -185,12 +187,8 @@ class MiTecladoAnclado : InputMethodService() {
             "SHIFT" -> toggleCaps()
             "CLEAR_CLIPBOARD" -> clearUnpinned()
             
-            // NUEVO: Abre la ventana de Google al tocar el microfono
-            "MIC" -> {
-                val intent = Intent(this, VoiceActivity::class.java)
-                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                startActivity(intent)
-            }
+            // Llama a nuestra nueva función de voz invisible
+            "MIC" -> startVoiceRecognition()
             
             "CLIPBOARD" -> {
                 checkSystemClipboard()
@@ -221,9 +219,77 @@ class MiTecladoAnclado : InputMethodService() {
         isCapsOn = !isCapsOn
     }
 
+    // --- NUEVO CEREBRO DE VOZ INVISIBLE ---
+    private fun updateMicStatus(text: String) {
+        btnMic1?.text = text
+        btnMic2?.text = text
+        btnMic3?.text = text
+    }
+
+    private fun setupSpeechRecognizer() {
+        if (SpeechRecognizer.isRecognitionAvailable(this)) {
+            speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this)
+            speechRecognizer.setRecognitionListener(object : RecognitionListener {
+                override fun onReadyForSpeech(params: Bundle?) { updateMicStatus("🔴") }
+                override fun onBeginningOfSpeech() { updateMicStatus("🗣️") }
+                override fun onRmsChanged(rmsdB: Float) {}
+                override fun onBufferReceived(buffer: ByteArray?) {}
+                override fun onEndOfSpeech() { updateMicStatus("⏳") }
+                override fun onError(error: Int) { 
+                    updateMicStatus("🎤")
+                    val msg = when(error) {
+                        SpeechRecognizer.ERROR_AUDIO -> "Error de audio"
+                        SpeechRecognizer.ERROR_CLIENT -> "Error del sistema"
+                        SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> "Sin permiso"
+                        SpeechRecognizer.ERROR_NETWORK -> "Sin internet"
+                        SpeechRecognizer.ERROR_NETWORK_TIMEOUT -> "Internet lento"
+                        SpeechRecognizer.ERROR_NO_MATCH -> "No se entendió"
+                        SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> "Ocupado"
+                        SpeechRecognizer.ERROR_SERVER -> "Error de Google"
+                        SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "No hablaste"
+                        else -> "Error $error"
+                    }
+                    Toast.makeText(this@MiTecladoAnclado, "Dictado: $msg", Toast.LENGTH_SHORT).show()
+                }
+                override fun onResults(results: Bundle?) {
+                    updateMicStatus("🎤")
+                    val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+                    if (!matches.isNullOrEmpty()) {
+                        currentInputConnection?.commitText(matches[0] + " ", 1)
+                    }
+                }
+                override fun onPartialResults(partialResults: Bundle?) {}
+                override fun onEvent(eventType: Int, params: Bundle?) {}
+            })
+        }
+    }
+
+    private fun startVoiceRecognition() {
+        // Verifica si la app tiene permiso de micrófono
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            Toast.makeText(this, "Abre la app Teclado Anclado para dar permiso de micrófono", Toast.LENGTH_LONG).show()
+            return
+        }
+
+        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE, "es-HN")
+        }
+        
+        try {
+            updateMicStatus("🔴")
+            speechRecognizer.startListening(intent)
+        } catch (e: Exception) {
+            updateMicStatus("🎤")
+            Toast.makeText(this, "Error al iniciar micrófono", Toast.LENGTH_SHORT).show()
+        }
+    }
+
     override fun onDestroy() {
         super.onDestroy()
         clipboardManager.removePrimaryClipChangedListener(clipListener) 
-        unregisterReceiver(voiceReceiver) // Apaga la antena al cerrar el teclado
+        if (::speechRecognizer.isInitialized) {
+            speechRecognizer.destroy()
+        }
     }
 }
