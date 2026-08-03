@@ -3,11 +3,11 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:background="#D1D5DB"
+    android:background="#E0E2E6" 
     android:paddingBottom="8dp">
 
     <!-- FILA DE NÚMEROS FIJA -->
-    <LinearLayout android:layout_width="match_parent" android:layout_height="50dp" android:orientation="horizontal" android:padding="2dp">
+    <LinearLayout android:layout_width="match_parent" android:layout_height="52dp" android:orientation="horizontal" android:padding="2dp">
         <Button android:text="1" style="@style/KeyStyle" />
         <Button android:text="2" style="@style/KeyStyle" />
         <Button android:text="3" style="@style/KeyStyle" />
@@ -20,13 +20,10 @@
         <Button android:text="0" style="@style/KeyStyle" />
     </LinearLayout>
 
-    <FrameLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content">
-
+    <FrameLayout android:layout_width="match_parent" android:layout_height="wrap_content">
         <!-- PÁGINA A: LETRAS -->
         <LinearLayout android:id="@+id/layout_letters" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:visibility="visible">
-            <LinearLayout android:layout_width="match_parent" android:layout_height="50dp" android:orientation="horizontal" android:padding="2dp">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="52dp" android:orientation="horizontal" android:padding="2dp">
                 <Button android:text="q" style="@style/KeyStyle" />
                 <Button android:text="w" style="@style/KeyStyle" />
                 <Button android:text="e" style="@style/KeyStyle" />
@@ -38,7 +35,7 @@
                 <Button android:text="o" style="@style/KeyStyle" />
                 <Button android:text="p" style="@style/KeyStyle" />
             </LinearLayout>
-            <LinearLayout android:layout_width="match_parent" android:layout_height="50dp" android:orientation="horizontal" android:padding="2dp">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="52dp" android:orientation="horizontal" android:padding="2dp">
                 <View android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="0.5"/>
                 <Button android:text="a" style="@style/KeyStyle" />
                 <Button android:text="s" style="@style/KeyStyle" />
@@ -52,7 +49,7 @@
                 <Button android:text="ñ" style="@style/KeyStyle" />
                 <View android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="0.5"/>
             </LinearLayout>
-            <LinearLayout android:layout_width="match_parent" android:layout_height="50dp" android:orientation="horizontal" android:padding="2dp">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="52dp" android:orientation="horizontal" android:padding="2dp">
                 <Button android:tag="SHIFT" android:text="⇧" style="@style/KeyStyleAction" android:layout_weight="1.5" />
                 <Button android:text="z" style="@style/KeyStyle" />
                 <Button android:text="x" style="@style/KeyStyle" />
@@ -63,7 +60,7 @@
                 <Button android:text="m" style="@style/KeyStyle" />
                 <Button android:tag="DELETE" android:text="⌫" style="@style/KeyStyleAction" android:layout_weight="1.5" />
             </LinearLayout>
-            <LinearLayout android:layout_width="match_parent" android:layout_height="50dp" android:orientation="horizontal" android:padding="2dp">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="52dp" android:orientation="horizontal" android:padding="2dp">
                 <Button android:tag="MODE_SYM1" android:text="!#1" style="@style/KeyStyleAction" android:layout_weight="1.5" />
                 <Button android:id="@+id/btnMic1" android:tag="MIC" android:text="🎤" style="@style/KeyStyleAction" android:layout_weight="1" />
                 <Button android:tag="CLIPBOARD" android:text="📋" style="@style/KeyStyleAction" android:layout_weight="1" />
@@ -76,7 +73,7 @@
 
         <!-- PÁGINA B: SÍMBOLOS 1 -->
         <LinearLayout android:id="@+id/layout_symbols_1" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:visibility="gone">
-            <LinearLayout android:layout_width="match_parent" android:layout_height="50dp" android:orientation="horizontal" android:padding="2dp">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="52dp" android:orientation="horizontal" android:padding="2dp">
                 <Button android:text="+" style="@style/KeyStyle" />
                 <Button android:text="×" style="@style/KeyStyle" />
                 <Button android:text="÷" style="@style/KeyStyle" />
@@ -88,7 +85,7 @@
                 <Button android:text="[" style="@style/KeyStyle" />
                 <Button android:text="]" style="@style/KeyStyle" />
             </LinearLayout>
-            <LinearLayout android:layout_width="match_parent" android:layout_height="50dp" android:orientation="horizontal" android:padding="2dp">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="52dp" android:orientation="horizontal" android:padding="2dp">
                 <Button android:text="!" style="@style/KeyStyle" />
                 <Button android:text="@" style="@style/KeyStyle" />
                 <Button android:text="#" style="@style/KeyStyle" />
@@ -100,21 +97,19 @@
                 <Button android:text="(" style="@style/KeyStyle" />
                 <Button android:text=")" style="@style/KeyStyle" />
             </LinearLayout>
-            <LinearLayout android:layout_width="match_parent" android:layout_height="50dp" android:orientation="horizontal" android:padding="2dp">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="52dp" android:orientation="horizontal" android:padding="2dp">
                 <Button android:tag="MODE_SYM2" android:text="1/2" style="@style/KeyStyleAction" android:layout_weight="1.5"/>
                 <Button android:text="-" style="@style/KeyStyle" />
                 <Button android:text="'" style="@style/KeyStyle" />
                 <Button android:text="&quot;" style="@style/KeyStyle" />
                 <Button android:text=":" style="@style/KeyStyle" />
                 <Button android:text=";" style="@style/KeyStyle" />
-                <Button android:text="," style="@style/KeyStyle" />
                 <Button android:text="?" style="@style/KeyStyle" />
                 <Button android:tag="DELETE" android:text="⌫" style="@style/KeyStyleAction" android:layout_weight="1.5" />
             </LinearLayout>
-            <LinearLayout android:layout_width="match_parent" android:layout_height="50dp" android:orientation="horizontal" android:padding="2dp">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="52dp" android:orientation="horizontal" android:padding="2dp">
                 <Button android:tag="MODE_LETTERS" android:text="ABC" style="@style/KeyStyleAction" android:layout_weight="1.5" />
-                <Button android:id="@+id/btnMic2" android:tag="MIC" android:text="🎤" style="@style/KeyStyleAction" android:layout_weight="1" />
-                <Button android:tag="CLIPBOARD" android:text="📋" style="@style/KeyStyleAction" android:layout_weight="1" />
+                <Button android:tag="MODE_NUMPAD" android:text="123" style="@style/KeyStyleAction" android:layout_weight="1" />
                 <Button android:text="," style="@style/KeyStyle" android:layout_weight="1" />
                 <Button android:tag="SPACE" android:text="Español (US)" style="@style/KeyStyleAction" android:layout_weight="3" />
                 <Button android:text="." style="@style/KeyStyle" android:layout_weight="1" />
@@ -122,9 +117,10 @@
             </LinearLayout>
         </LinearLayout>
 
-        <!-- PÁGINA C: SÍMBOLOS 2 -->
+        <!-- PÁGINA C: SÍMBOLOS 2 (Simplificada) -->
         <LinearLayout android:id="@+id/layout_symbols_2" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:visibility="gone">
-            <LinearLayout android:layout_width="match_parent" android:layout_height="50dp" android:orientation="horizontal" android:padding="2dp">
+            <!-- (Contenido de símbolos 2, igual que antes) -->
+            <LinearLayout android:layout_width="match_parent" android:layout_height="52dp" android:orientation="horizontal" android:padding="2dp">
                 <Button android:text="`" style="@style/KeyStyle" />
                 <Button android:text="~" style="@style/KeyStyle" />
                 <Button android:text="\\" style="@style/KeyStyle" />
@@ -136,7 +132,7 @@
                 <Button android:text="¥" style="@style/KeyStyle" />
                 <Button android:text="₩" style="@style/KeyStyle" />
             </LinearLayout>
-            <LinearLayout android:layout_width="match_parent" android:layout_height="50dp" android:orientation="horizontal" android:padding="2dp">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="52dp" android:orientation="horizontal" android:padding="2dp">
                 <Button android:text="°" style="@style/KeyStyle" />
                 <Button android:text="•" style="@style/KeyStyle" />
                 <Button android:text="○" style="@style/KeyStyle" />
@@ -148,7 +144,7 @@
                 <Button android:text="◇" style="@style/KeyStyle" />
                 <Button android:text="♧" style="@style/KeyStyle" />
             </LinearLayout>
-            <LinearLayout android:layout_width="match_parent" android:layout_height="50dp" android:orientation="horizontal" android:padding="2dp">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="52dp" android:orientation="horizontal" android:padding="2dp">
                 <Button android:tag="MODE_SYM1" android:text="2/2" style="@style/KeyStyleAction" android:layout_weight="1.5"/>
                 <Button android:text="☆" style="@style/KeyStyle" />
                 <Button android:text="▪" style="@style/KeyStyle" />
@@ -159,10 +155,9 @@
                 <Button android:text="¿" style="@style/KeyStyle" />
                 <Button android:tag="DELETE" android:text="⌫" style="@style/KeyStyleAction" android:layout_weight="1.5" />
             </LinearLayout>
-            <LinearLayout android:layout_width="match_parent" android:layout_height="50dp" android:orientation="horizontal" android:padding="2dp">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="52dp" android:orientation="horizontal" android:padding="2dp">
                 <Button android:tag="MODE_LETTERS" android:text="ABC" style="@style/KeyStyleAction" android:layout_weight="1.5" />
-                <Button android:id="@+id/btnMic3" android:tag="MIC" android:text="🎤" style="@style/KeyStyleAction" android:layout_weight="1" />
-                <Button android:tag="CLIPBOARD" android:text="📋" style="@style/KeyStyleAction" android:layout_weight="1" />
+                <Button android:tag="MODE_NUMPAD" android:text="123" style="@style/KeyStyleAction" android:layout_weight="1" />
                 <Button android:text="," style="@style/KeyStyle" android:layout_weight="1" />
                 <Button android:tag="SPACE" android:text="Español (US)" style="@style/KeyStyleAction" android:layout_weight="3" />
                 <Button android:text="." style="@style/KeyStyle" android:layout_weight="1" />
@@ -170,40 +165,45 @@
             </LinearLayout>
         </LinearLayout>
 
-       <!-- PÁGINA D: PORTAPAPELES ESTILO SAMSUNG (NUEVO) -->
+        <!-- PÁGINA: NUMPAD DEDICADO -->
+        <LinearLayout android:id="@+id/layout_numpad" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:visibility="gone">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="55dp" android:orientation="horizontal" android:padding="2dp">
+                <Button android:text="1" style="@style/KeyStyle" />
+                <Button android:text="2" style="@style/KeyStyle" />
+                <Button android:text="3" style="@style/KeyStyle" />
+                <Button android:tag="DELETE" android:text="⌫" style="@style/KeyStyleAction" />
+            </LinearLayout>
+            <LinearLayout android:layout_width="match_parent" android:layout_height="55dp" android:orientation="horizontal" android:padding="2dp">
+                <Button android:text="4" style="@style/KeyStyle" />
+                <Button android:text="5" style="@style/KeyStyle" />
+                <Button android:text="6" style="@style/KeyStyle" />
+                <Button android:tag="ENTER" android:text="↵" style="@style/KeyStyleAction" />
+            </LinearLayout>
+            <LinearLayout android:layout_width="match_parent" android:layout_height="55dp" android:orientation="horizontal" android:padding="2dp">
+                <Button android:text="7" style="@style/KeyStyle" />
+                <Button android:text="8" style="@style/KeyStyle" />
+                <Button android:text="9" style="@style/KeyStyle" />
+                <Button android:text="-" style="@style/KeyStyleAction" />
+            </LinearLayout>
+            <LinearLayout android:layout_width="match_parent" android:layout_height="55dp" android:orientation="horizontal" android:padding="2dp">
+                <Button android:tag="MODE_LETTERS" android:text="ABC" style="@style/KeyStyleAction" />
+                <Button android:text="0" style="@style/KeyStyle" />
+                <Button android:text="." style="@style/KeyStyleAction" />
+                <Button android:tag="SPACE" android:text="Espacio" style="@style/KeyStyleAction" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- PORTAPAPELES (Igual que antes) -->
         <LinearLayout android:id="@+id/layout_clipboard" android:layout_width="match_parent" android:layout_height="250dp" android:orientation="vertical" android:visibility="gone" android:background="#121212">
-            
-            <!-- Barra superior del portapapeles -->
             <LinearLayout android:layout_width="match_parent" android:layout_height="40dp" android:orientation="horizontal" android:padding="4dp" android:background="#1E1E1E">
                 <TextView android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:text="Portapapeles" android:textStyle="bold" android:gravity="center_vertical" android:paddingStart="12dp" android:textColor="#FFFFFF"/>
                 <Button android:tag="CLEAR_CLIPBOARD" android:text="🗑️ Limpiar" style="@style/KeyStyleAction" android:layout_width="wrap_content" android:layout_height="match_parent" android:layout_marginEnd="4dp" android:padding="4dp" />
                 <Button android:tag="MODE_LETTERS" android:text="❌ Cerrar" style="@style/KeyStyleAction" android:layout_width="wrap_content" android:layout_height="match_parent" android:padding="4dp" />
             </LinearLayout>
-
-            <!-- Contenedor para que el botón flote sobre la lista -->
             <FrameLayout android:layout_width="match_parent" android:layout_height="match_parent">
-                
-                <androidx.recyclerview.widget.RecyclerView
-                    android:id="@+id/keyboard_recycler_view"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent" 
-                    android:padding="4dp"/>
-
-                <!-- Botón Enter Flotante -->
-                <Button
-                    android:id="@+id/btnClipboardEnter"
-                    android:tag="ENTER"
-                    android:layout_width="50dp"
-                    android:layout_height="50dp"
-                    android:layout_gravity="bottom|end"
-                    android:layout_margin="16dp"
-                    android:background="@drawable/bg_fab"
-                    android:text="↵"
-                    android:textColor="#FFFFFF"
-                    android:textSize="24sp"
-                    android:elevation="6dp" />
+                <androidx.recyclerview.widget.RecyclerView android:id="@+id/keyboard_recycler_view" android:layout_width="match_parent" android:layout_height="match_parent" android:padding="4dp"/>
+                <Button android:id="@+id/btnClipboardEnter" android:tag="ENTER" android:layout_width="50dp" android:layout_height="50dp" android:layout_gravity="bottom|end" android:layout_margin="16dp" android:background="@drawable/bg_fab" android:text="↵" android:textColor="#FFFFFF" android:textSize="24sp" android:elevation="6dp" />
             </FrameLayout>
-            
         </LinearLayout>
 
     </FrameLayout>
