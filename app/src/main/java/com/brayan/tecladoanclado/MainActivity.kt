@@ -31,7 +31,7 @@ class MainActivity : AppCompatActivity() {
         val etNewPin = findViewById<EditText>(R.id.etNewPin)
         val btnAdd = findViewById<Button>(R.id.btnAdd)
 
-        // Inicializar el adaptador con el nuevo formato ClipboardItem
+        // Inicializar el adaptador
         adapter = PinnedAdapter(items, onItemClick = {}, onItemLongClick = { _, _ -> })
 
         rvMainPins.layoutManager = LinearLayoutManager(this)
@@ -41,7 +41,6 @@ class MainActivity : AppCompatActivity() {
         btnAdd.setOnClickListener {
             val text = etNewPin.text.toString()
             if (text.isNotBlank()) {
-                // Todo lo que agregues manual desde aquí se considera "Anclado" por defecto
                 items.add(ClipboardItem(text, isPinned = true))
                 adapter.notifyItemInserted(items.size - 1)
                 DataManager.saveItems(this, items)
@@ -49,7 +48,7 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        // Lógica para arrastrar (reordenar) y deslizar (borrar) en la app principal
+        // Lógica para arrastrar (reordenar) y deslizar (borrar)
         val itemTouchHelper = ItemTouchHelper(object : ItemTouchHelper.SimpleCallback(
             ItemTouchHelper.UP or ItemTouchHelper.DOWN, 
             ItemTouchHelper.LEFT or ItemTouchHelper.RIGHT
@@ -71,5 +70,15 @@ class MainActivity : AppCompatActivity() {
             }
         })
         itemTouchHelper.attachToRecyclerView(rvMainPins)
+    }
+
+    // ¡AQUÍ ESTÁ LA MAGIA NUEVA! 
+    // Esta función obliga a la app a recargar los datos cada vez que la abres o regresas a ella
+    override fun onResume() {
+        super.onResume()
+        if (::adapter.isInitialized) {
+            items = DataManager.loadItems(this)
+            adapter.updateData(items)
+        }
     }
 }
