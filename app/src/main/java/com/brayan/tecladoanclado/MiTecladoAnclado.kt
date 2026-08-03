@@ -3,10 +3,13 @@ package com.brayan.tecladoanclado
 import android.content.Intent
 import android.inputmethodservice.InputMethodService
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 import android.view.KeyEvent
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
@@ -18,32 +21,37 @@ class MiTecladoAnclado : InputMethodService() {
     private var isCapsOn = false
     private lateinit var speechRecognizer: SpeechRecognizer
     
-    // Contenedores de las páginas
+    // Contenedores
     private lateinit var layoutLetters: View
     private lateinit var layoutSymbols1: View
     private lateinit var layoutSymbols2: View
 
-    // Botones de micrófono
     private var btnMic1: Button? = null
     private var btnMic2: Button? = null
     private var btnMic3: Button? = null
 
+    // Lógica para el borrado continuo
+    private val deleteHandler = Handler(Looper.getMainLooper())
+    private val deleteRunnable = object : Runnable {
+        override fun run() {
+            currentInputConnection?.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DEL))
+            deleteHandler.postDelayed(this, 50) // 50 milisegundos: velocidad normal y fluida
+        }
+    }
+
     override fun onCreateInputView(): View {
         val view = layoutInflater.inflate(R.layout.keyboard_layout, null)
         
-        // Vincular los contenedores
         layoutLetters = view.findViewById(R.id.layout_letters)
         layoutSymbols1 = view.findViewById(R.id.layout_symbols_1)
         layoutSymbols2 = view.findViewById(R.id.layout_symbols_2)
 
-        // Vincular micrófonos
         btnMic1 = view.findViewById(R.id.btnMic1)
         btnMic2 = view.findViewById(R.id.btnMic2)
         btnMic3 = view.findViewById(R.id.btnMic3)
         
         setupSpeechRecognizer()
 
-        // Configurar la barra de portapapeles (¡Intacta!)
         val recyclerView = view.findViewById<RecyclerView>(R.id.keyboard_recycler_view)
         val items = DataManager.loadItems(this)
         adapter = PinnedAdapter(items, isEditable = false, onItemClick = { text ->
@@ -52,7 +60,6 @@ class MiTecladoAnclado : InputMethodService() {
         recyclerView.layoutManager = LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
         recyclerView.adapter = adapter
 
-        // Activar todos los botones
         setKeyListeners(view as ViewGroup)
         
         return view
@@ -64,7 +71,23 @@ class MiTecladoAnclado : InputMethodService() {
             if (child is ViewGroup) {
                 setKeyListeners(child)
             } else if (child is Button) {
-                child.setOnClickListener { handleKeyPress(child) }
+                if (child.tag == "DELETE") {
+                    // Acción especial para mantener presionado el botón de borrar
+                    child.setOnTouchListener { _, event ->
+                        when (event.action) {
+                            MotionEvent.ACTION_DOWN -> {
+                                currentInputConnection?.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DEL))
+                                deleteHandler.postDelayed(deleteRunnable, 400) // Pausa inicial de 400ms antes de borrar rápido
+                            }
+                            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                                deleteHandler.removeCallbacks(deleteRunnable)
+                            }
+                        }
+                        true
+                    }
+                } else {
+                    child.setOnClickListener { handleKeyPress(child) }
+                }
             }
         }
     }
@@ -74,13 +97,17 @@ class MiTecladoAnclado : InputMethodService() {
         val tag = button.tag as? String
 
         when (tag) {
-            "DELETE" -> ic.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DEL))
             "ENTER" -> ic.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_ENTER))
             "SPACE" -> ic.commitText(" ", 1)
             "SHIFT" -> toggleCaps()
             "MIC" -> startVoiceRecognition()
+            "CLIPBOARD" -> {
+                // Abre la aplicación principal para gestionar los anclados
+                val intent = Intent(this, MainActivity::class.java)
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                startActivity(intent)
+            }
             
-            // Navegación entre páginas del teclado
             "MODE_LETTERS" -> switchLayout(layoutLetters)
             "MODE_SYM1" -> switchLayout(layoutSymbols1)
             "MODE_SYM2" -> switchLayout(layoutSymbols2)
