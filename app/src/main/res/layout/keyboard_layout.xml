@@ -192,6 +192,7 @@
                 <!-- Botón Enter Flotante -->
                 <Button
                     android:id="@+id/btnClipboardEnter"
+                    android:tag="ENTER"
                     android:layout_width="50dp"
                     android:layout_height="50dp"
                     android:layout_gravity="bottom|end"
