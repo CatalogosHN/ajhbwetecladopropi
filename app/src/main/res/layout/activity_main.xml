@@ -3,35 +3,77 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:padding="16dp">
+    android:padding="16dp"
+    android:background="#121212">
 
+    <!-- Título -->
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="@string/config_instructions"
-        android:textSize="14sp"
-        android:layout_marginBottom="16dp"/>
+        android:text="Gestor de Respuestas Rápidas"
+        android:textColor="#FFFFFF"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:paddingBottom="8dp"/>
 
+    <!-- Caja de texto para agregar respuestas individuales -->
+    <EditText
+        android:id="@+id/etNewPin"
+        android:layout_width="match_parent"
+        android:layout_height="100dp"
+        android:background="#1E1E1E"
+        android:textColor="#FFFFFF"
+        android:textColorHint="#888888"
+        android:hint="Escribe una nueva respuesta rápida aquí..."
+        android:gravity="top|start"
+        android:padding="12dp"
+        android:textSize="14sp"/>
+
+    <!-- Botón Agregar -->
+    <Button
+        android:id="@+id/btnAdd"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="Guardar Respuesta"
+        android:backgroundTint="#2196F3"
+        android:textColor="#FFFFFF"/>
+
+    <!-- NUEVOS BOTONES: Importar y Exportar -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal">
-        <EditText
-            android:id="@+id/etNewPin"
+        android:orientation="horizontal"
+        android:layout_marginTop="8dp"
+        android:layout_marginBottom="8dp">
+
+        <Button
+            android:id="@+id/btnExport"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:hint="@string/hint_text"/>
+            android:layout_marginEnd="4dp"
+            android:text="📤 Exportar TXT"
+            android:backgroundTint="#374151"
+            android:textColor="#FFFFFF"/>
+
         <Button
-            android:id="@+id/btnAdd"
-            android:layout_width="wrap_content"
+            android:id="@+id/btnImport"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:text="@string/add_button"/>
+            android:layout_weight="1"
+            android:layout_marginStart="4dp"
+            android:text="📥 Importar TXT"
+            android:backgroundTint="#374151"
+            android:textColor="#FFFFFF"/>
     </LinearLayout>
 
+    <!-- Lista de respuestas guardadas -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rvMainPins"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:layout_marginTop="16dp"/>
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:layout_marginTop="4dp"/>
+
 </LinearLayout>
