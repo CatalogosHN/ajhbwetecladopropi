@@ -1,0 +1,9 @@
+<resources>
+    <string name="app_name">Teclado Anclado</string>
+    <string name="add_button">Agregar Anclado</string>
+    <string name="hint_text">Escribe tu texto anclado aquí...</string>
+    <string name="config_instructions">Instrucciones:
+1. Ve a Ajustes de Teclado.
+2. Habilita "Teclado Anclado".
+3. Selecciona este teclado cuando vayas a escribir.</string>
+</resources>
