@@ -6,9 +6,13 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.inputmethodservice.InputMethodService
+import android.media.AudioManager
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.os.VibrationEffect
+import android.os.Vibrator
 import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
@@ -28,6 +32,12 @@ class MiTecladoAnclado : InputMethodService() {
     private lateinit var clipboardManager: ClipboardManager
     private lateinit var speechRecognizer: SpeechRecognizer
     
+    // Motores de Audio y Vibración
+    private lateinit var audioManager: AudioManager
+    private lateinit var vibrator: Vibrator
+    private var soundEnabled = true
+    private var vibrationEnabled = false
+    
     // Estados de Mayúscula: 0=Minúscula, 1=Una vez, 2=Caps Lock
     private var shiftState = 0
     private var lastShiftTime = 0L
@@ -44,19 +54,21 @@ class MiTecladoAnclado : InputMethodService() {
     private val deleteHandler = Handler(Looper.getMainLooper())
     private val deleteRunnable = object : Runnable {
         override fun run() {
+            playClickFeedback()
             currentInputConnection?.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DEL))
             deleteHandler.postDelayed(this, 50) 
         }
     }
 
-    private val clipListener = ClipboardManager.OnPrimaryClipChangedListener {
-        checkSystemClipboard()
-    }
+    private val clipListener = ClipboardManager.OnPrimaryClipChangedListener { checkSystemClipboard() }
 
     override fun onCreate() {
         super.onCreate()
         clipboardManager = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
         clipboardManager.addPrimaryClipChangedListener(clipListener)
+        
+        audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        vibrator = getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
     }
 
     override fun onCreateInputView(): View {
@@ -70,6 +82,13 @@ class MiTecladoAnclado : InputMethodService() {
 
         btnMic1 = view.findViewById(R.id.btnMic1)
         setupSpeechRecognizer()
+
+        // Botón Enter Flotante
+        val btnClipboardEnter = view.findViewById<Button>(R.id.btnClipboardEnter)
+        btnClipboardEnter?.setOnClickListener {
+            playClickFeedback()
+            currentInputConnection?.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_ENTER))
+        }
 
         val recyclerView = view.findViewById<RecyclerView>(R.id.keyboard_recycler_view)
         val items = DataManager.loadItems(this)
@@ -87,11 +106,32 @@ class MiTecladoAnclado : InputMethodService() {
         return view
     }
 
-    // Auto-Mayúsculas al iniciar una oración
     override fun onStartInputView(info: EditorInfo?, restarting: Boolean) {
         super.onStartInputView(info, restarting)
+        
+        // Leer preferencias cada vez que se abre el teclado
+        soundEnabled = DataManager.isSoundEnabled(this)
+        vibrationEnabled = DataManager.isVibrationEnabled(this)
+        
         checkSystemClipboard()
         updateAutoCaps(info)
+    }
+
+    // --- MAGIA DEL SONIDO Y VIBRACIÓN ---
+    private fun playClickFeedback() {
+        if (soundEnabled) {
+            audioManager.playSoundEffect(AudioManager.FX_KEYPRESS_STANDARD)
+        }
+        if (vibrationEnabled) {
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    vibrator.vibrate(VibrationEffect.createOneShot(20, VibrationEffect.DEFAULT_AMPLITUDE))
+                } else {
+                    @Suppress("DEPRECATION")
+                    vibrator.vibrate(20)
+                }
+            } catch (e: Exception) {}
+        }
     }
 
     override fun onUpdateSelection(oldSelStart: Int, oldSelEnd: Int, newSelStart: Int, newSelEnd: Int, candidatesStart: Int, candidatesEnd: Int) {
@@ -100,7 +140,7 @@ class MiTecladoAnclado : InputMethodService() {
     }
 
     private fun updateAutoCaps(info: EditorInfo?) {
-        if (info != null && shiftState != 2) { // Solo si no está bloqueada
+        if (info != null && shiftState != 2) { 
             val capsMode = currentInputConnection?.getCursorCapsMode(info.inputType) ?: 0
             if (capsMode != 0) {
                 setShiftState(1)
@@ -110,7 +150,6 @@ class MiTecladoAnclado : InputMethodService() {
         }
     }
 
-    // Actualiza visualmente las letras y el ícono
     private fun setShiftState(state: Int) {
         shiftState = state
         val isUpper = shiftState > 0
@@ -128,7 +167,7 @@ class MiTecladoAnclado : InputMethodService() {
                     child.text = when(shiftState) {
                         0 -> "⇧"
                         1 -> "⬆"
-                        else -> "⇪" // Caps Lock
+                        else -> "⇪" 
                     }
                 } else if (tag == null && child.text.length == 1 && child.text.first().isLetter()) {
                     child.text = if (isUpper) child.text.toString().uppercase() else child.text.toString().lowercase()
@@ -144,7 +183,6 @@ class MiTecladoAnclado : InputMethodService() {
                 setKeyListeners(child)
             } else if (child is Button) {
                 
-                // LÓGICA DE PULSACIÓN LARGA PARA TILDES RAPIDAS
                 child.setOnLongClickListener {
                     val text = child.text.toString().lowercase()
                     val accentedChar = when(text) {
@@ -153,10 +191,11 @@ class MiTecladoAnclado : InputMethodService() {
                         else -> null
                     }
                     if (accentedChar != null) {
+                        playClickFeedback()
                         val textToInsert = if (shiftState > 0) accentedChar.uppercase() else accentedChar
                         currentInputConnection?.commitText(textToInsert, 1)
-                        if (shiftState == 1) setShiftState(0) // Regresar a minuscula si era estado 1
-                        true // Consumió el evento
+                        if (shiftState == 1) setShiftState(0) 
+                        true 
                     } else {
                         false
                     }
@@ -166,6 +205,7 @@ class MiTecladoAnclado : InputMethodService() {
                     child.setOnTouchListener { _, event ->
                         when (event.action) {
                             MotionEvent.ACTION_DOWN -> {
+                                playClickFeedback()
                                 currentInputConnection?.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DEL))
                                 deleteHandler.postDelayed(deleteRunnable, 400) 
                             }
@@ -181,6 +221,7 @@ class MiTecladoAnclado : InputMethodService() {
     }
 
     private fun handleKeyPress(button: Button) {
+        playClickFeedback() // SUENA AL TOCAR CUALQUIER TECLA
         val ic = currentInputConnection ?: return
         val tag = button.tag as? String
 
@@ -193,25 +234,23 @@ class MiTecladoAnclado : InputMethodService() {
             "SHIFT" -> {
                 val now = System.currentTimeMillis()
                 if (now - lastShiftTime < 400) {
-                    setShiftState(2) // Doble toque -> Caps Lock
+                    setShiftState(2) 
                 } else {
                     setShiftState(if (shiftState == 0) 1 else 0)
                 }
                 lastShiftTime = now
             }
             
-            // Navegación de menús
             "CLIPBOARD" -> { checkSystemClipboard(); switchLayout(layoutClipboard) }
             "MODE_LETTERS" -> switchLayout(layoutLetters)
             "MODE_SYM1" -> switchLayout(layoutSymbols1)
             "MODE_SYM2" -> switchLayout(layoutSymbols2)
-            "MODE_NUMPAD" -> switchLayout(layoutNumpad) // Abre el teclado numerico grande
+            "MODE_NUMPAD" -> switchLayout(layoutNumpad) 
             
             else -> {
-                val textToInsert = button.text.toString() // El texto del boton ya está en mayuscula/minuscula
+                val textToInsert = button.text.toString() 
                 ic.commitText(textToInsert, 1)
                 
-                // Si escribes una letra y el Shift estaba en 1 (no bloqueado), regresa a minúscula
                 if (shiftState == 1 && tag == null && textToInsert.length == 1) {
                     setShiftState(0)
                 }
