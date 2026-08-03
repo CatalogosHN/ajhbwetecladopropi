@@ -6,7 +6,6 @@
     android:padding="16dp"
     android:background="#121212">
 
-    <!-- Título -->
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -16,7 +15,6 @@
         android:textStyle="bold"
         android:paddingBottom="8dp"/>
 
-    <!-- Caja de texto para agregar respuestas individuales -->
     <EditText
         android:id="@+id/etNewPin"
         android:layout_width="match_parent"
@@ -29,7 +27,6 @@
         android:padding="12dp"
         android:textSize="14sp"/>
 
-    <!-- Botón Agregar -->
     <Button
         android:id="@+id/btnAdd"
         android:layout_width="match_parent"
@@ -39,12 +36,36 @@
         android:backgroundTint="#2196F3"
         android:textColor="#FFFFFF"/>
 
-    <!-- NUEVOS BOTONES: Importar y Exportar -->
+    <!-- NUEVO: Interruptores de Sonido y Vibración -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:layout_marginTop="8dp"
+        android:layout_marginTop="12dp"
+        android:layout_marginBottom="4dp">
+        
+        <Switch
+            android:id="@+id/switchSound"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="🔊 Sonido"
+            android:textColor="#FFFFFF" />
+
+        <Switch
+            android:id="@+id/switchVibration"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="📳 Vibración"
+            android:textColor="#FFFFFF" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginTop="4dp"
         android:layout_marginBottom="8dp">
 
         <Button
@@ -68,7 +89,6 @@
             android:textColor="#FFFFFF"/>
     </LinearLayout>
 
-    <!-- Lista de respuestas guardadas -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rvMainPins"
         android:layout_width="match_parent"
