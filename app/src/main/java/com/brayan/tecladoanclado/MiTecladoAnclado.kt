@@ -25,6 +25,7 @@ class MiTecladoAnclado : InputMethodService() {
     private lateinit var layoutLetters: View
     private lateinit var layoutSymbols1: View
     private lateinit var layoutSymbols2: View
+    private lateinit var layoutClipboard: View
 
     private var btnMic1: Button? = null
     private var btnMic2: Button? = null
@@ -35,7 +36,7 @@ class MiTecladoAnclado : InputMethodService() {
     private val deleteRunnable = object : Runnable {
         override fun run() {
             currentInputConnection?.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DEL))
-            deleteHandler.postDelayed(this, 50) // 50 milisegundos: velocidad normal y fluida
+            deleteHandler.postDelayed(this, 50) 
         }
     }
 
@@ -45,6 +46,7 @@ class MiTecladoAnclado : InputMethodService() {
         layoutLetters = view.findViewById(R.id.layout_letters)
         layoutSymbols1 = view.findViewById(R.id.layout_symbols_1)
         layoutSymbols2 = view.findViewById(R.id.layout_symbols_2)
+        layoutClipboard = view.findViewById(R.id.layout_clipboard)
 
         btnMic1 = view.findViewById(R.id.btnMic1)
         btnMic2 = view.findViewById(R.id.btnMic2)
@@ -52,17 +54,29 @@ class MiTecladoAnclado : InputMethodService() {
         
         setupSpeechRecognizer()
 
+        // Configuración del portapapeles ¡HACIA ABAJO!
         val recyclerView = view.findViewById<RecyclerView>(R.id.keyboard_recycler_view)
         val items = DataManager.loadItems(this)
         adapter = PinnedAdapter(items, isEditable = false, onItemClick = { text ->
             currentInputConnection?.commitText(text, 1)
+            // Regresa a las letras mágicamente después de pegar
+            switchLayout(layoutLetters) 
         }) { }
-        recyclerView.layoutManager = LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
+        
+        recyclerView.layoutManager = LinearLayoutManager(this) // Lista vertical
         recyclerView.adapter = adapter
 
         setKeyListeners(view as ViewGroup)
         
         return view
+    }
+
+    // Actualiza la lista si fuiste a la app a editar algo
+    override fun onWindowShown() {
+        super.onWindowShown()
+        if (::adapter.isInitialized) {
+            adapter.updateData(DataManager.loadItems(this))
+        }
     }
 
     private fun setKeyListeners(parent: ViewGroup) {
@@ -72,12 +86,11 @@ class MiTecladoAnclado : InputMethodService() {
                 setKeyListeners(child)
             } else if (child is Button) {
                 if (child.tag == "DELETE") {
-                    // Acción especial para mantener presionado el botón de borrar
                     child.setOnTouchListener { _, event ->
                         when (event.action) {
                             MotionEvent.ACTION_DOWN -> {
                                 currentInputConnection?.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DEL))
-                                deleteHandler.postDelayed(deleteRunnable, 400) // Pausa inicial de 400ms antes de borrar rápido
+                                deleteHandler.postDelayed(deleteRunnable, 400) 
                             }
                             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                                 deleteHandler.removeCallbacks(deleteRunnable)
@@ -101,8 +114,10 @@ class MiTecladoAnclado : InputMethodService() {
             "SPACE" -> ic.commitText(" ", 1)
             "SHIFT" -> toggleCaps()
             "MIC" -> startVoiceRecognition()
-            "CLIPBOARD" -> {
-                // Abre la aplicación principal para gestionar los anclados
+            
+            // Acciones del portapapeles
+            "CLIPBOARD" -> switchLayout(layoutClipboard)
+            "MANAGE_CLIPBOARD" -> {
                 val intent = Intent(this, MainActivity::class.java)
                 intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 startActivity(intent)
@@ -124,6 +139,7 @@ class MiTecladoAnclado : InputMethodService() {
         layoutLetters.visibility = View.GONE
         layoutSymbols1.visibility = View.GONE
         layoutSymbols2.visibility = View.GONE
+        layoutClipboard.visibility = View.GONE
         activeLayout.visibility = View.VISIBLE
     }
 
