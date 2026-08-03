@@ -8,7 +8,6 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
-import java.util.Collections
 
 class PinnedAdapter(
     private var items: MutableList<ClipboardItem>,
@@ -33,6 +32,8 @@ class PinnedAdapter(
 
         val handler = Handler(Looper.getMainLooper())
         var isLongPress = false
+        var startX = 0f
+        var startY = 0f
 
         val longPressRunnable = Runnable {
             if (isLongPress) {
@@ -45,7 +46,16 @@ class PinnedAdapter(
             when (event.action) {
                 MotionEvent.ACTION_DOWN -> {
                     isLongPress = true
-                    handler.postDelayed(longPressRunnable, 2000) // Exactamente 2 segundos
+                    startX = event.x
+                    startY = event.y
+                    handler.postDelayed(longPressRunnable, 2000) // 2 segundos exactos
+                }
+                MotionEvent.ACTION_MOVE -> {
+                    // Si el usuario desliza el dedo, cancelamos el anclaje
+                    if (Math.abs(event.x - startX) > 20 || Math.abs(event.y - startY) > 20) {
+                        isLongPress = false
+                        handler.removeCallbacks(longPressRunnable)
+                    }
                 }
                 MotionEvent.ACTION_UP -> {
                     if (isLongPress) {
