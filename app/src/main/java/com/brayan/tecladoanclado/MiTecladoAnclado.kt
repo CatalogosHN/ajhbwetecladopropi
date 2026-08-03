@@ -63,13 +63,18 @@ class MiTecladoAnclado : InputMethodService() {
         
         setupSpeechRecognizer()
 
+        // NUEVO: Conectar el botón flotante de Enter
+        val btnClipboardEnter = view.findViewById<Button>(R.id.btnClipboardEnter)
+        btnClipboardEnter.setOnClickListener {
+            currentInputConnection?.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_ENTER))
+        }
+
         val recyclerView = view.findViewById<RecyclerView>(R.id.keyboard_recycler_view)
         val items = DataManager.loadItems(this)
         
         adapter = PinnedAdapter(items, 
             onItemClick = { text ->
                 currentInputConnection?.commitText(text, 1)
-                // ¡ELIMINADO! Ya no se regresa a las letras automáticamente.
             },
             onItemLongClick = { item, position ->
                 handleLongPressItem(item, position)
@@ -84,7 +89,6 @@ class MiTecladoAnclado : InputMethodService() {
         return view
     }
 
-    // Se ejecuta cada vez que el teclado aparece en pantalla (Atrapa el último texto copiado)
     override fun onStartInputView(info: EditorInfo?, restarting: Boolean) {
         super.onStartInputView(info, restarting)
         checkSystemClipboard()
@@ -116,13 +120,11 @@ class MiTecladoAnclado : InputMethodService() {
         val realItem = items.find { it.text == item.text } ?: return
 
         if (realItem.isPinned) {
-            // DESANCLAR (Rápido y sin menús estorbosos)
             realItem.isPinned = false
             DataManager.saveItems(this, items)
             adapter.updateData(items)
             Toast.makeText(this, "Elemento desanclado", Toast.LENGTH_SHORT).show()
         } else {
-            // ANCLAR
             realItem.isPinned = true
             items.remove(realItem)
             items.add(0, realItem)
