@@ -7,6 +7,7 @@ import android.content.pm.PackageManager
 import android.os.Bundle
 import android.widget.Button
 import android.widget.EditText
+import android.widget.Switch
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
@@ -32,7 +33,6 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        // Permisos
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.RECORD_AUDIO), 1)
         }
@@ -43,13 +43,21 @@ class MainActivity : AppCompatActivity() {
         val btnAdd = findViewById<Button>(R.id.btnAdd)
         val btnExport = findViewById<Button>(R.id.btnExport)
         val btnImport = findViewById<Button>(R.id.btnImport)
+        
+        // Interruptores de Sonido y Vibración
+        val switchSound = findViewById<Switch>(R.id.switchSound)
+        val switchVibration = findViewById<Switch>(R.id.switchVibration)
+
+        switchSound.isChecked = DataManager.isSoundEnabled(this)
+        switchVibration.isChecked = DataManager.isVibrationEnabled(this)
+
+        switchSound.setOnCheckedChangeListener { _, isChecked -> DataManager.setSoundEnabled(this, isChecked) }
+        switchVibration.setOnCheckedChangeListener { _, isChecked -> DataManager.setVibrationEnabled(this, isChecked) }
 
         adapter = PinnedAdapter(items, onItemClick = {}, onItemLongClick = { _, _ -> })
-
         rvMainPins.layoutManager = LinearLayoutManager(this)
         rvMainPins.adapter = adapter
 
-        // Guardar individual
         btnAdd.setOnClickListener {
             val text = etNewPin.text.toString()
             if (text.isNotBlank()) {
@@ -61,7 +69,6 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        // Exportar a TXT
         btnExport.setOnClickListener {
             val intent = Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
                 addCategory(Intent.CATEGORY_OPENABLE)
@@ -71,7 +78,6 @@ class MainActivity : AppCompatActivity() {
             startActivityForResult(intent, CREATE_FILE_REQUEST_CODE)
         }
 
-        // Importar de TXT
         btnImport.setOnClickListener {
             val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
                 addCategory(Intent.CATEGORY_OPENABLE)
@@ -80,7 +86,6 @@ class MainActivity : AppCompatActivity() {
             startActivityForResult(intent, PICK_FILE_REQUEST_CODE)
         }
 
-        // Reordenar y borrar deslizando
         val itemTouchHelper = ItemTouchHelper(object : ItemTouchHelper.SimpleCallback(
             ItemTouchHelper.UP or ItemTouchHelper.DOWN, 
             ItemTouchHelper.LEFT or ItemTouchHelper.RIGHT
@@ -104,14 +109,12 @@ class MainActivity : AppCompatActivity() {
         itemTouchHelper.attachToRecyclerView(rvMainPins)
     }
 
-    // Manejar la respuesta del explorador de archivos (Importar / Exportar)
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
         if (resultCode == Activity.RESULT_OK && data != null) {
             val uri = data.data ?: return
             try {
                 if (requestCode == CREATE_FILE_REQUEST_CODE) {
-                    // Escribir archivo separando con guiones
                     contentResolver.openOutputStream(uri)?.use { outputStream ->
                         OutputStreamWriter(outputStream).use { writer ->
                             val sb = StringBuilder()
@@ -123,11 +126,10 @@ class MainActivity : AppCompatActivity() {
                     }
                     Toast.makeText(this, "¡Respuestas exportadas con éxito!", Toast.LENGTH_SHORT).show()
                 } else if (requestCode == PICK_FILE_REQUEST_CODE) {
-                    // Leer archivo y dividir por los guiones "---------"
                     contentResolver.openInputStream(uri)?.use { inputStream ->
                         BufferedReader(InputStreamReader(inputStream)).use { reader ->
                             val content = reader.readText()
-                            val rawList = content.split(Regex("----[-]*")) // Detecta 3 o más guiones
+                            val rawList = content.split(Regex("----[-]*"))
                             val newItems = mutableListOf<ClipboardItem>()
                             for (block in rawList) {
                                 val trimmed = block.trim()
