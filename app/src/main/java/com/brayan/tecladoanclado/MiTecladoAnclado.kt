@@ -36,6 +36,7 @@ class MiTecladoAnclado : InputMethodService() {
     private var btnMic2: Button? = null
     private var btnMic3: Button? = null
 
+    // Lógica para el borrado continuo
     private val deleteHandler = Handler(Looper.getMainLooper())
     private val deleteRunnable = object : Runnable {
         override fun run() {
@@ -44,9 +45,16 @@ class MiTecladoAnclado : InputMethodService() {
         }
     }
 
+    // NUEVO: La "antena" que escucha el portapapeles en TIEMPO REAL
+    private val clipListener = ClipboardManager.OnPrimaryClipChangedListener {
+        checkSystemClipboard()
+    }
+
     override fun onCreate() {
         super.onCreate()
         clipboardManager = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        // Encendemos la antena cuando el teclado se crea
+        clipboardManager.addPrimaryClipChangedListener(clipListener)
     }
 
     override fun onCreateInputView(): View {
@@ -63,9 +71,9 @@ class MiTecladoAnclado : InputMethodService() {
         
         setupSpeechRecognizer()
 
-        // NUEVO: Conectar el botón flotante de Enter
+        // Botón Enter Flotante
         val btnClipboardEnter = view.findViewById<Button>(R.id.btnClipboardEnter)
-        btnClipboardEnter.setOnClickListener {
+        btnClipboardEnter?.setOnClickListener {
             currentInputConnection?.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_ENTER))
         }
 
@@ -246,6 +254,8 @@ class MiTecladoAnclado : InputMethodService() {
 
     override fun onDestroy() {
         super.onDestroy()
+        // Apagamos la antena cuando el teclado se cierra para ahorrar batería
+        clipboardManager.removePrimaryClipChangedListener(clipListener) 
         speechRecognizer.destroy()
     }
 }
