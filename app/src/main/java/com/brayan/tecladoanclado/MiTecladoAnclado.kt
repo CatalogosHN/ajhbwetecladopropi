@@ -1,6 +1,5 @@
 package com.brayan.tecladoanclado
 
-import android.app.AlertDialog
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
@@ -15,7 +14,7 @@ import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
-import android.view.WindowManager
+import android.view.inputmethod.EditorInfo
 import android.widget.Button
 import android.widget.Toast
 import androidx.recyclerview.widget.GridLayoutManager
@@ -64,14 +63,13 @@ class MiTecladoAnclado : InputMethodService() {
         
         setupSpeechRecognizer()
 
-        // Configuración de CUADRÍCULA DE 3 COLUMNAS
         val recyclerView = view.findViewById<RecyclerView>(R.id.keyboard_recycler_view)
         val items = DataManager.loadItems(this)
         
         adapter = PinnedAdapter(items, 
             onItemClick = { text ->
                 currentInputConnection?.commitText(text, 1)
-                switchLayout(layoutLetters) 
+                // ¡ELIMINADO! Ya no se regresa a las letras automáticamente.
             },
             onItemLongClick = { item, position ->
                 handleLongPressItem(item, position)
@@ -86,12 +84,12 @@ class MiTecladoAnclado : InputMethodService() {
         return view
     }
 
-    override fun onWindowShown() {
-        super.onWindowShown()
+    // Se ejecuta cada vez que el teclado aparece en pantalla (Atrapa el último texto copiado)
+    override fun onStartInputView(info: EditorInfo?, restarting: Boolean) {
+        super.onStartInputView(info, restarting)
         checkSystemClipboard()
     }
 
-    // Lee el portapapeles del sistema cuando abres el teclado
     private fun checkSystemClipboard() {
         if (clipboardManager.hasPrimaryClip()) {
             val clip = clipboardManager.primaryClip
@@ -99,10 +97,9 @@ class MiTecladoAnclado : InputMethodService() {
                 val newText = clip.getItemAt(0).text?.toString()
                 if (!newText.isNullOrBlank()) {
                     val items = DataManager.loadItems(this)
-                    // Verifica si ya es el primero o si ya está anclado para no duplicar inútilmente
                     val existingItem = items.find { it.text == newText }
                     if (existingItem == null) {
-                        items.add(0, ClipboardItem(newText, false)) // Lo agrega arriba
+                        items.add(0, ClipboardItem(newText, false))
                         DataManager.saveItems(this, items)
                         if (::adapter.isInitialized) adapter.updateData(items)
                     }
@@ -119,30 +116,14 @@ class MiTecladoAnclado : InputMethodService() {
         val realItem = items.find { it.text == item.text } ?: return
 
         if (realItem.isPinned) {
-            // Confirmación para DESANCLAR (El diálogo requiere permisos especiales en el teclado, así que usamos el contexto directo)
-            val builder = AlertDialog.Builder(this)
-            builder.setTitle("¿Desanclar?")
-            builder.setMessage("Este elemento ya no estará protegido contra el borrado.")
-            builder.setPositiveButton("Sí, desanclar") { _, _ ->
-                realItem.isPinned = false
-                DataManager.saveItems(this, items)
-                adapter.updateData(items)
-                Toast.makeText(this, "Elemento desanclado", Toast.LENGTH_SHORT).show()
-            }
-            builder.setNegativeButton("Cancelar", null)
-            
-            val dialog = builder.create()
-            val window = dialog.window
-            if (window != null) {
-                // Truco vital para mostrar pop-ups sobre un teclado
-                window.setType(WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY) 
-            }
-            dialog.show()
-
+            // DESANCLAR (Rápido y sin menús estorbosos)
+            realItem.isPinned = false
+            DataManager.saveItems(this, items)
+            adapter.updateData(items)
+            Toast.makeText(this, "Elemento desanclado", Toast.LENGTH_SHORT).show()
         } else {
-            // ANCLAR directamente
+            // ANCLAR
             realItem.isPinned = true
-            // Mover al principio de la lista
             items.remove(realItem)
             items.add(0, realItem)
             DataManager.saveItems(this, items)
