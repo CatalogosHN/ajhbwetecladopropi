@@ -1,5 +1,8 @@
 package com.brayan.tecladoanclado
 
+import android.app.AlertDialog
+import android.content.ClipboardManager
+import android.content.Context
 import android.content.Intent
 import android.inputmethodservice.InputMethodService
 import android.os.Bundle
@@ -12,14 +15,17 @@ import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
+import android.view.WindowManager
 import android.widget.Button
-import androidx.recyclerview.widget.LinearLayoutManager
+import android.widget.Toast
+import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 
 class MiTecladoAnclado : InputMethodService() {
     private lateinit var adapter: PinnedAdapter
     private var isCapsOn = false
     private lateinit var speechRecognizer: SpeechRecognizer
+    private lateinit var clipboardManager: ClipboardManager
     
     // Contenedores
     private lateinit var layoutLetters: View
@@ -31,13 +37,17 @@ class MiTecladoAnclado : InputMethodService() {
     private var btnMic2: Button? = null
     private var btnMic3: Button? = null
 
-    // Lógica para el borrado continuo
     private val deleteHandler = Handler(Looper.getMainLooper())
     private val deleteRunnable = object : Runnable {
         override fun run() {
             currentInputConnection?.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DEL))
             deleteHandler.postDelayed(this, 50) 
         }
+    }
+
+    override fun onCreate() {
+        super.onCreate()
+        clipboardManager = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
     }
 
     override fun onCreateInputView(): View {
@@ -54,16 +64,21 @@ class MiTecladoAnclado : InputMethodService() {
         
         setupSpeechRecognizer()
 
-        // Configuración del portapapeles ¡HACIA ABAJO!
+        // Configuración de CUADRÍCULA DE 3 COLUMNAS
         val recyclerView = view.findViewById<RecyclerView>(R.id.keyboard_recycler_view)
         val items = DataManager.loadItems(this)
-        adapter = PinnedAdapter(items, isEditable = false, onItemClick = { text ->
-            currentInputConnection?.commitText(text, 1)
-            // Regresa a las letras mágicamente después de pegar
-            switchLayout(layoutLetters) 
-        }) { }
         
-        recyclerView.layoutManager = LinearLayoutManager(this) // Lista vertical
+        adapter = PinnedAdapter(items, 
+            onItemClick = { text ->
+                currentInputConnection?.commitText(text, 1)
+                switchLayout(layoutLetters) 
+            },
+            onItemLongClick = { item, position ->
+                handleLongPressItem(item, position)
+            }
+        )
+        
+        recyclerView.layoutManager = GridLayoutManager(this, 3) 
         recyclerView.adapter = adapter
 
         setKeyListeners(view as ViewGroup)
@@ -71,12 +86,77 @@ class MiTecladoAnclado : InputMethodService() {
         return view
     }
 
-    // Actualiza la lista si fuiste a la app a editar algo
     override fun onWindowShown() {
         super.onWindowShown()
+        checkSystemClipboard()
+    }
+
+    // Lee el portapapeles del sistema cuando abres el teclado
+    private fun checkSystemClipboard() {
+        if (clipboardManager.hasPrimaryClip()) {
+            val clip = clipboardManager.primaryClip
+            if (clip != null && clip.itemCount > 0) {
+                val newText = clip.getItemAt(0).text?.toString()
+                if (!newText.isNullOrBlank()) {
+                    val items = DataManager.loadItems(this)
+                    // Verifica si ya es el primero o si ya está anclado para no duplicar inútilmente
+                    val existingItem = items.find { it.text == newText }
+                    if (existingItem == null) {
+                        items.add(0, ClipboardItem(newText, false)) // Lo agrega arriba
+                        DataManager.saveItems(this, items)
+                        if (::adapter.isInitialized) adapter.updateData(items)
+                    }
+                }
+            }
+        }
         if (::adapter.isInitialized) {
             adapter.updateData(DataManager.loadItems(this))
         }
+    }
+
+    private fun handleLongPressItem(item: ClipboardItem, position: Int) {
+        val items = DataManager.loadItems(this)
+        val realItem = items.find { it.text == item.text } ?: return
+
+        if (realItem.isPinned) {
+            // Confirmación para DESANCLAR (El diálogo requiere permisos especiales en el teclado, así que usamos el contexto directo)
+            val builder = AlertDialog.Builder(this)
+            builder.setTitle("¿Desanclar?")
+            builder.setMessage("Este elemento ya no estará protegido contra el borrado.")
+            builder.setPositiveButton("Sí, desanclar") { _, _ ->
+                realItem.isPinned = false
+                DataManager.saveItems(this, items)
+                adapter.updateData(items)
+                Toast.makeText(this, "Elemento desanclado", Toast.LENGTH_SHORT).show()
+            }
+            builder.setNegativeButton("Cancelar", null)
+            
+            val dialog = builder.create()
+            val window = dialog.window
+            if (window != null) {
+                // Truco vital para mostrar pop-ups sobre un teclado
+                window.setType(WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY) 
+            }
+            dialog.show()
+
+        } else {
+            // ANCLAR directamente
+            realItem.isPinned = true
+            // Mover al principio de la lista
+            items.remove(realItem)
+            items.add(0, realItem)
+            DataManager.saveItems(this, items)
+            adapter.updateData(items)
+            Toast.makeText(this, "📌 Elemento anclado", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun clearUnpinned() {
+        val items = DataManager.loadItems(this)
+        val pinnedOnly = items.filter { it.isPinned }.toMutableList()
+        DataManager.saveItems(this, pinnedOnly)
+        adapter.updateData(pinnedOnly)
+        Toast.makeText(this, "Elementos recientes eliminados", Toast.LENGTH_SHORT).show()
     }
 
     private fun setKeyListeners(parent: ViewGroup) {
@@ -114,13 +194,11 @@ class MiTecladoAnclado : InputMethodService() {
             "SPACE" -> ic.commitText(" ", 1)
             "SHIFT" -> toggleCaps()
             "MIC" -> startVoiceRecognition()
+            "CLEAR_CLIPBOARD" -> clearUnpinned()
             
-            // Acciones del portapapeles
-            "CLIPBOARD" -> switchLayout(layoutClipboard)
-            "MANAGE_CLIPBOARD" -> {
-                val intent = Intent(this, MainActivity::class.java)
-                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                startActivity(intent)
+            "CLIPBOARD" -> {
+                checkSystemClipboard()
+                switchLayout(layoutClipboard)
             }
             
             "MODE_LETTERS" -> switchLayout(layoutLetters)
