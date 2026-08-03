@@ -2,6 +2,14 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.brayan.tecladoanclado">
 
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
+    <queries>
+        <intent>
+            <action android:name="android.speech.RecognitionService" />
+        </intent>
+    </queries>
+
     <application
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
@@ -17,6 +25,11 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- NUEVA: Pantalla transparente para invocar a Google -->
+        <activity 
+            android:name=".VoiceActivity" 
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
 
         <service
             android:name=".MiTecladoAnclado"
