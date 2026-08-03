@@ -6,13 +6,6 @@
     android:background="#D1D5DB"
     android:paddingBottom="8dp">
 
-    <!-- EL PORTAPAPELES ANCLADO -->
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/keyboard_recycler_view"
-        android:layout_width="match_parent"
-        android:layout_height="50dp"
-        android:background="#F3F4F6"/>
-
     <!-- FILA DE NÚMEROS FIJA -->
     <LinearLayout android:layout_width="match_parent" android:layout_height="50dp" android:orientation="horizontal" android:padding="2dp">
         <Button android:text="1" style="@style/KeyStyle" />
@@ -176,5 +169,24 @@
                 <Button android:tag="ENTER" android:text="↵" style="@style/KeyStyleAction" android:layout_weight="1.5" />
             </LinearLayout>
         </LinearLayout>
+
+        <!-- PÁGINA D: PORTAPAPELES ESTILO SAMSUNG (NUEVO) -->
+        <LinearLayout android:id="@+id/layout_clipboard" android:layout_width="match_parent" android:layout_height="200dp" android:orientation="vertical" android:visibility="gone" android:background="#ECEFF1">
+            
+            <!-- Barra superior del portapapeles -->
+            <LinearLayout android:layout_width="match_parent" android:layout_height="40dp" android:orientation="horizontal" android:padding="4dp" android:background="#D1D5DB">
+                <TextView android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:text="Tus Textos Anclados" android:textStyle="bold" android:gravity="center_vertical" android:paddingStart="12dp" android:textColor="#000000"/>
+                <Button android:tag="MANAGE_CLIPBOARD" android:text="⚙️ Editar" style="@style/KeyStyleAction" android:layout_width="wrap_content" android:layout_height="match_parent" android:layout_marginEnd="4dp" android:padding="4dp" />
+                <Button android:tag="MODE_LETTERS" android:text="❌ Cerrar" style="@style/KeyStyleAction" android:layout_width="wrap_content" android:layout_height="match_parent" android:padding="4dp" />
+            </LinearLayout>
+
+            <!-- Lista hacia abajo -->
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/keyboard_recycler_view"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent" 
+                android:padding="4dp"/>
+        </LinearLayout>
+
     </FrameLayout>
 </LinearLayout>
