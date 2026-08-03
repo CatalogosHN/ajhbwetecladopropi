@@ -170,13 +170,13 @@
             </LinearLayout>
         </LinearLayout>
 
-        <!-- PÁGINA D: PORTAPAPELES ESTILO SAMSUNG (NUEVO) -->
-        <LinearLayout android:id="@+id/layout_clipboard" android:layout_width="match_parent" android:layout_height="200dp" android:orientation="vertical" android:visibility="gone" android:background="#ECEFF1">
+       <!-- PÁGINA D: PORTAPAPELES ESTILO SAMSUNG (NUEVO) -->
+        <LinearLayout android:id="@+id/layout_clipboard" android:layout_width="match_parent" android:layout_height="250dp" android:orientation="vertical" android:visibility="gone" android:background="#121212">
             
             <!-- Barra superior del portapapeles -->
-            <LinearLayout android:layout_width="match_parent" android:layout_height="40dp" android:orientation="horizontal" android:padding="4dp" android:background="#D1D5DB">
-                <TextView android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:text="Tus Textos Anclados" android:textStyle="bold" android:gravity="center_vertical" android:paddingStart="12dp" android:textColor="#000000"/>
-                <Button android:tag="MANAGE_CLIPBOARD" android:text="⚙️ Editar" style="@style/KeyStyleAction" android:layout_width="wrap_content" android:layout_height="match_parent" android:layout_marginEnd="4dp" android:padding="4dp" />
+            <LinearLayout android:layout_width="match_parent" android:layout_height="40dp" android:orientation="horizontal" android:padding="4dp" android:background="#1E1E1E">
+                <TextView android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:text="Portapapeles" android:textStyle="bold" android:gravity="center_vertical" android:paddingStart="12dp" android:textColor="#FFFFFF"/>
+                <Button android:tag="CLEAR_CLIPBOARD" android:text="🗑️ Limpiar" style="@style/KeyStyleAction" android:layout_width="wrap_content" android:layout_height="match_parent" android:layout_marginEnd="4dp" android:padding="4dp" />
                 <Button android:tag="MODE_LETTERS" android:text="❌ Cerrar" style="@style/KeyStyleAction" android:layout_width="wrap_content" android:layout_height="match_parent" android:padding="4dp" />
             </LinearLayout>
 
