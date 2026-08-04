@@ -40,24 +40,33 @@
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
+        android:orientation="vertical"
         android:layout_marginTop="12dp"
-        android:layout_marginBottom="4dp">
+        android:layout_marginBottom="8dp"
+        android:background="#1E1E1E"
+        android:padding="8dp">
         
         <Switch
             android:id="@+id/switchSound"
-            android:layout_width="0dp"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="🔊 Sonido"
-            android:textColor="#FFFFFF" />
+            android:text="🔊 Sonido de Teclas"
+            android:textColor="#FFFFFF" 
+            android:paddingBottom="4dp"/>
+
+        <Switch
+            android:id="@+id/switchSoundEnter"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="🎵 Sonido Especial (Enter MP3)"
+            android:textColor="#FFFFFF"
+            android:paddingBottom="4dp"/>
 
         <Switch
             android:id="@+id/switchVibration"
-            android:layout_width="0dp"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="📳 Vibración"
+            android:text="📳 Vibración de Teclas"
             android:textColor="#FFFFFF" />
     </LinearLayout>
 
