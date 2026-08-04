@@ -119,18 +119,23 @@ class MiTecladoAnclado : InputMethodService() {
 
     // --- MAGIA DEL SONIDO Y VIBRACIÓN ---
     private fun playClickFeedback() {
+        // Sonido al volumen máximo (1.0f)
         if (soundEnabled) {
-            audioManager.playSoundEffect(AudioManager.FX_KEYPRESS_STANDARD)
+            audioManager.playSoundEffect(AudioManager.FX_KEYPRESS_STANDARD, 1.0f)
         }
+        
+        // Vibración más fuerte y sólida (40ms)
         if (vibrationEnabled) {
             try {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    vibrator.vibrate(VibrationEffect.createOneShot(20, VibrationEffect.DEFAULT_AMPLITUDE))
+                    vibrator.vibrate(VibrationEffect.createOneShot(40, VibrationEffect.DEFAULT_AMPLITUDE))
                 } else {
                     @Suppress("DEPRECATION")
-                    vibrator.vibrate(20)
+                    vibrator.vibrate(40)
                 }
-            } catch (e: Exception) {}
+            } catch (e: Exception) {
+                // Ignorar si falla
+            }
         }
     }
 
