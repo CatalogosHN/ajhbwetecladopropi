@@ -12,8 +12,9 @@
         <LinearLayout android:id="@+id/layout_top_bar" android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="horizontal" android:padding="2dp">
             <Button android:id="@+id/btnMic1" android:tag="MIC" android:text="🎤" style="@style/KeyStyleAction" android:backgroundTint="#FFFFFF" android:layout_weight="1"/>
             <Button android:tag="CLIPBOARD" android:text="📋" style="@style/KeyStyleAction" android:backgroundTint="#FFFFFF" android:layout_weight="1"/>
-            <Button android:tag="OPEN_QR_MODE" android:text="⚡ Respuestas" style="@style/KeyStyleAction" android:backgroundTint="#FFFFFF" android:layout_weight="1.5"/>
-            <Button android:tag="OPEN_TRANSLATOR" android:text="🌐" style="@style/KeyStyleAction" android:backgroundTint="#FFFFFF" android:layout_weight="0.8"/>
+            <Button android:tag="OPEN_QR_MODE" android:text="⚡" style="@style/KeyStyleAction" android:backgroundTint="#FFFFFF" android:layout_weight="1"/>
+            <Button android:tag="OPEN_EMOJI" android:text="😊" style="@style/KeyStyleAction" android:backgroundTint="#FFFFFF" android:layout_weight="1"/>
+            <Button android:tag="OPEN_TRANSLATOR" android:text="🌐" style="@style/KeyStyleAction" android:backgroundTint="#FFFFFF" android:layout_weight="1"/>
         </LinearLayout>
 
         <!-- BARRA BÚSQUEDA RESPUESTAS -->
@@ -31,14 +32,8 @@
         </LinearLayout>
     </FrameLayout>
 
-    <!-- LISTA DE RESPUESTAS (Aparece y empuja todo hacia abajo cuando buscas) -->
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/rv_quick_replies_keyboard"
-        android:layout_width="match_parent"
-        android:layout_height="180dp"
-        android:visibility="gone"
-        android:background="#121212"
-        android:padding="4dp" />
+    <!-- LISTA DE RESPUESTAS (Aparece al buscar) -->
+    <androidx.recyclerview.widget.RecyclerView android:id="@+id/rv_quick_replies_keyboard" android:layout_width="match_parent" android:layout_height="180dp" android:visibility="gone" android:background="#121212" android:padding="4dp" />
 
     <!-- FILA DE NÚMEROS FIJA -->
     <LinearLayout android:layout_width="match_parent" android:layout_height="52dp" android:orientation="horizontal" android:padding="2dp">
@@ -105,7 +100,6 @@
 
         <!-- PÁGINA B: SÍMBOLOS 1 -->
         <LinearLayout android:id="@+id/layout_symbols_1" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:visibility="gone">
-            <!-- Simbolos -->
             <LinearLayout android:layout_width="match_parent" android:layout_height="52dp" android:orientation="horizontal" android:padding="2dp">
                 <Button android:text="+" style="@style/KeyStyle" />
                 <Button android:text="×" style="@style/KeyStyle" />
@@ -236,6 +230,16 @@
                 <androidx.recyclerview.widget.RecyclerView android:id="@+id/keyboard_recycler_view" android:layout_width="match_parent" android:layout_height="match_parent" android:padding="4dp"/>
                 <Button android:id="@+id/btnClipboardEnter" android:tag="ENTER" android:layout_width="50dp" android:layout_height="50dp" android:layout_gravity="bottom|end" android:layout_margin="16dp" android:background="@drawable/bg_fab" android:text="↵" android:textColor="#FFFFFF" android:textSize="24sp" android:elevation="6dp" />
             </FrameLayout>
+        </LinearLayout>
+
+        <!-- PÁGINA: EMOJIS MASIVOS -->
+        <LinearLayout android:id="@+id/layout_emojis" android:layout_width="match_parent" android:layout_height="220dp" android:orientation="vertical" android:visibility="gone" android:background="#E0E2E6">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="45dp" android:orientation="horizontal" android:padding="4dp" android:background="#D1D4D9">
+                <Button android:tag="MODE_LETTERS" android:text="ABC" style="@style/KeyStyleAction" android:layout_width="wrap_content" android:layout_height="match_parent" android:layout_marginEnd="4dp" />
+                <TextView android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:text="Emojis de WhatsApp" android:gravity="center" android:textColor="#000000" android:textStyle="bold"/>
+                <Button android:tag="DELETE" android:text="⌫" style="@style/KeyStyleAction" android:layout_width="wrap_content" android:layout_height="match_parent" />
+            </LinearLayout>
+            <androidx.recyclerview.widget.RecyclerView android:id="@+id/rv_emojis_keyboard" android:layout_width="match_parent" android:layout_height="match_parent" android:padding="4dp"/>
         </LinearLayout>
 
     </FrameLayout>
