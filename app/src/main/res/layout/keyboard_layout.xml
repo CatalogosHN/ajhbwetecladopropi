@@ -97,7 +97,7 @@
             <LinearLayout android:layout_width="match_parent" android:layout_height="52dp" android:orientation="horizontal" android:padding="2dp">
                 <Button android:tag="MODE_SYM1" android:text="!#1" style="@style/KeyStyleAction" android:layout_weight="1.5" />
                 <Button android:text="," style="@style/KeyStyle" android:layout_weight="1" />
-                <Button android:tag="SPACE" android:text="Dev<>BrayanR" style="@style/KeyStyleAction" android:layout_weight="4" />
+                <Button android:tag="SPACE" android:text="Dev&lt;&gt;BrayanR" style="@style/KeyStyleAction" android:layout_weight="4" />
                 <Button android:text="." style="@style/KeyStyle" android:layout_weight="1" />
                 <Button android:tag="ENTER" android:text="↵" style="@style/KeyStyleAction" android:layout_weight="1.5" />
             </LinearLayout>
@@ -144,7 +144,7 @@
                 <Button android:tag="MODE_LETTERS" android:text="ABC" style="@style/KeyStyleAction" android:layout_weight="1.5" />
                 <Button android:tag="MODE_NUMPAD" android:text="123" style="@style/KeyStyleAction" android:layout_weight="1" />
                 <Button android:text="," style="@style/KeyStyle" android:layout_weight="1" />
-                <Button android:tag="SPACE" android:text="Dev<>BrayanR" style="@style/KeyStyleAction" android:layout_weight="3" />
+                <Button android:tag="SPACE" android:text="Dev&lt;&gt;BrayanR" style="@style/KeyStyleAction" android:layout_weight="3" />
                 <Button android:text="." style="@style/KeyStyle" android:layout_weight="1" />
                 <Button android:tag="ENTER" android:text="↵" style="@style/KeyStyleAction" android:layout_weight="1.5" />
             </LinearLayout>
@@ -191,7 +191,7 @@
                 <Button android:tag="MODE_LETTERS" android:text="ABC" style="@style/KeyStyleAction" android:layout_weight="1.5" />
                 <Button android:tag="MODE_NUMPAD" android:text="123" style="@style/KeyStyleAction" android:layout_weight="1" />
                 <Button android:text="," style="@style/KeyStyle" android:layout_weight="1" />
-                <Button android:tag="SPACE" android:text="Dev<>BrayanR" style="@style/KeyStyleAction" android:layout_weight="3" />
+                <Button android:tag="SPACE" android:text="Dev&lt;&gt;BrayanR" style="@style/KeyStyleAction" android:layout_weight="3" />
                 <Button android:text="." style="@style/KeyStyle" android:layout_weight="1" />
                 <Button android:tag="ENTER" android:text="↵" style="@style/KeyStyleAction" android:layout_weight="1.5" />
             </LinearLayout>
