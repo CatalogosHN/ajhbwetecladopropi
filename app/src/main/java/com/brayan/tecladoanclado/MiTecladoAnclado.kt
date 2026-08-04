@@ -170,7 +170,7 @@ class MiTecladoAnclado : InputMethodService() {
         }
     }
 
-    // --- MAGIA DEL TRADUCTOR ---
+    // --- TRADUCTOR DE GOOGLE CORREGIDO ---
     private fun setupTranslator() {
         btnLangToggle.setOnClickListener {
             playClickFeedback()
@@ -181,7 +181,6 @@ class MiTecladoAnclado : InputMethodService() {
         btnTranslateSend.setOnClickListener {
             playClickFeedback()
             val ic = currentInputConnection ?: return@setOnClickListener
-            // ¡ATENCIÓN! Lee lo que escribiste directamente del chat de WhatsApp
             val textToTranslate = ic.getTextBeforeCursor(1000, 0)?.toString() ?: ""
             
             if (textToTranslate.isNotBlank()) {
@@ -197,6 +196,10 @@ class MiTecladoAnclado : InputMethodService() {
                         
                         val conn = URL(urlStr).openConnection() as HttpURLConnection
                         conn.requestMethod = "GET"
+                        // AQUÍ ESTÁ EL TRUCO: Disfrazar la petición como navegador web
+                        conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
+                        conn.connectTimeout = 5000
+                        conn.readTimeout = 5000
                         
                         if (conn.responseCode == 200) {
                             val response = conn.inputStream.bufferedReader().readText()
@@ -204,23 +207,22 @@ class MiTecladoAnclado : InputMethodService() {
                             val translatedText = jsonArray.getJSONArray(0).getJSONArray(0).getString(0)
                             
                             Handler(Looper.getMainLooper()).post {
-                                // Borra tu texto y pega el traducido en su lugar
                                 ic.deleteSurroundingText(textToTranslate.length, 0)
                                 ic.commitText(translatedText, 1)
-                                btnTranslateSend.text = "✨ Traducir lo escrito"
+                                btnTranslateSend.text = "✨ Traducir texto"
                                 btnTranslateSend.isEnabled = true
                             }
-                        } else { throw Exception("Error") }
+                        } else { throw Exception("HTTP ${conn.responseCode}") }
                     } catch (e: Exception) {
                         Handler(Looper.getMainLooper()).post {
-                            Toast.makeText(this@MiTecladoAnclado, "Error de internet", Toast.LENGTH_SHORT).show()
-                            btnTranslateSend.text = "✨ Traducir lo escrito"
+                            Toast.makeText(this@MiTecladoAnclado, "Error al traducir. Revisa tu internet.", Toast.LENGTH_SHORT).show()
+                            btnTranslateSend.text = "✨ Traducir texto"
                             btnTranslateSend.isEnabled = true
                         }
                     }
                 }
             } else {
-                Toast.makeText(this, "Primero escribe algo en el chat", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "Escribe algo en el chat primero", Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -275,7 +277,6 @@ class MiTecladoAnclado : InputMethodService() {
             } else if (child is Button) {
                 val tag = child.tag as? String
                 
-                // ¡AQUÍ ESTÁ LA SOLUCIÓN! Evitamos que los botones del traductor se vuelvan letras
                 if (tag == "IGNORE") continue
                 
                 child.setOnLongClickListener {
@@ -339,7 +340,6 @@ class MiTecladoAnclado : InputMethodService() {
                 lastShiftTime = now
             }
             
-            // Navegación de barras
             "OPEN_TRANSLATOR" -> {
                 layoutTopBar.visibility = View.GONE
                 layoutTranslatorBar.visibility = View.VISIBLE
@@ -349,7 +349,6 @@ class MiTecladoAnclado : InputMethodService() {
                 layoutTopBar.visibility = View.VISIBLE
             }
             
-            // Navegación de teclado
             "CLIPBOARD" -> { checkSystemClipboard(); switchLayout(layoutClipboard) }
             "MODE_LETTERS" -> switchLayout(layoutLetters)
             "MODE_SYM1" -> switchLayout(layoutSymbols1)
