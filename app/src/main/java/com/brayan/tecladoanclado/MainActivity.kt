@@ -1,6 +1,8 @@
 package com.brayan.tecladoanclado
 
 import android.Manifest
+import android.app.Activity
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Color
 import android.graphics.Typeface
@@ -19,6 +21,9 @@ import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import java.io.BufferedReader
+import java.io.InputStreamReader
+import java.io.OutputStreamWriter
 import java.util.Collections
 
 class MainActivity : AppCompatActivity() {
@@ -27,16 +32,25 @@ class MainActivity : AppCompatActivity() {
     
     private var clipItems = mutableListOf<ClipboardItem>()
     private var qrItems = mutableListOf<QuickReplyItem>()
+    
+    // Controla qué pestaña estamos viendo
     private var isClipboardMode = true
+
+    companion object {
+        private const val PICK_FILE_REQUEST_CODE = 101
+        private const val CREATE_FILE_REQUEST_CODE = 102
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
+        // Permisos de Audio
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.RECORD_AUDIO), 1)
         }
 
+        // Cargar listas guardadas
         clipItems = DataManager.loadItems(this)
         qrItems = DataManager.loadQuickReplies(this)
 
@@ -50,6 +64,10 @@ class MainActivity : AppCompatActivity() {
         val etQrShortcut = findViewById<EditText>(R.id.etQrShortcut)
         val etQrText = findViewById<EditText>(R.id.etQrText)
         val btnAdd = findViewById<Button>(R.id.btnAdd)
+        
+        // ¡NUESTROS BOTONES RESCATADOS!
+        val btnExport = findViewById<Button>(R.id.btnExport)
+        val btnImport = findViewById<Button>(R.id.btnImport)
 
         // Configurar Switches
         val switchSound = findViewById<Switch>(R.id.switchSound)
@@ -62,13 +80,13 @@ class MainActivity : AppCompatActivity() {
         switchSoundEnter.setOnCheckedChangeListener { _, isChecked -> DataManager.setSoundEnterEnabled(this, isChecked) }
         switchVibration.setOnCheckedChangeListener { _, isChecked -> DataManager.setVibrationEnabled(this, isChecked) }
 
-        // Adaptadores
+        // Inicializar Adaptadores
         clipAdapter = PinnedAdapter(clipItems, onItemClick = {}, onItemLongClick = { _, _ -> })
         qrAdapter = QuickReplyAppAdapter(qrItems)
         rvMainPins.layoutManager = LinearLayoutManager(this)
         rvMainPins.adapter = clipAdapter
 
-        // Cambio de Pestañas
+        // Lógica de Pestañas
         btnTabClip.setOnClickListener {
             isClipboardMode = true
             btnTabClip.backgroundTintList = getColorStateList(android.R.color.holo_blue_light)
@@ -87,7 +105,7 @@ class MainActivity : AppCompatActivity() {
             rvMainPins.adapter = qrAdapter
         }
 
-        // Guardar Datos
+        // Lógica para Guardar una nueva respuesta
         btnAdd.setOnClickListener {
             if (isClipboardMode) {
                 val text = etNewPin.text.toString()
@@ -112,7 +130,27 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        // Reordenar y Eliminar deslizando
+        // --- LÓGICA DE EXPORTAR TXT ---
+        btnExport.setOnClickListener {
+            val intent = Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
+                addCategory(Intent.CATEGORY_OPENABLE)
+                type = "text/plain"
+                // El nombre cambia según la pestaña en la que estés
+                putExtra(Intent.EXTRA_TITLE, if(isClipboardMode) "portapapeles.txt" else "respuestas_rapidas.txt")
+            }
+            startActivityForResult(intent, CREATE_FILE_REQUEST_CODE)
+        }
+
+        // --- LÓGICA DE IMPORTAR TXT ---
+        btnImport.setOnClickListener {
+            val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+                addCategory(Intent.CATEGORY_OPENABLE)
+                type = "text/plain"
+            }
+            startActivityForResult(intent, PICK_FILE_REQUEST_CODE)
+        }
+
+        // Lógica para Reordenar y Eliminar Deslizando
         val itemTouchHelper = ItemTouchHelper(object : ItemTouchHelper.SimpleCallback(
             ItemTouchHelper.UP or ItemTouchHelper.DOWN, ItemTouchHelper.LEFT or ItemTouchHelper.RIGHT
         ) {
@@ -147,8 +185,101 @@ class MainActivity : AppCompatActivity() {
         itemTouchHelper.attachToRecyclerView(rvMainPins)
     }
 
-    // Adaptador programático visual para las respuestas
-    inner class QuickReplyAppAdapter(private val items: MutableList<QuickReplyItem>) : RecyclerView.Adapter<QuickReplyAppAdapter.QRViewHolder>() {
+    // --- EL CEREBRO PARA LEER Y ESCRIBIR EL ARCHIVO TXT ---
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (resultCode == Activity.RESULT_OK && data != null) {
+            val uri = data.data ?: return
+            try {
+                if (requestCode == CREATE_FILE_REQUEST_CODE) {
+                    // EXPORTAR
+                    contentResolver.openOutputStream(uri)?.use { outputStream ->
+                        OutputStreamWriter(outputStream).use { writer ->
+                            val sb = StringBuilder()
+                            if (isClipboardMode) {
+                                for (item in clipItems) {
+                                    sb.append(item.text).append("\n---------\n")
+                                }
+                            } else {
+                                for (item in qrItems) {
+                                    sb.append("${item.shortcut} | ${item.text}").append("\n---------\n")
+                                }
+                            }
+                            writer.write(sb.toString())
+                        }
+                    }
+                    Toast.makeText(this, "¡Exportado con éxito!", Toast.LENGTH_SHORT).show()
+
+                } else if (requestCode == PICK_FILE_REQUEST_CODE) {
+                    // IMPORTAR
+                    contentResolver.openInputStream(uri)?.use { inputStream ->
+                        BufferedReader(InputStreamReader(inputStream)).use { reader ->
+                            val content = reader.readText()
+                            val rawList = content.split(Regex("----[-]*"))
+                            
+                            if (isClipboardMode) {
+                                // Importar Portapapeles normal
+                                val newItems = mutableListOf<ClipboardItem>()
+                                for (block in rawList) {
+                                    val trimmed = block.trim()
+                                    if (trimmed.isNotEmpty()) newItems.add(ClipboardItem(trimmed, isPinned = true))
+                                }
+                                if (newItems.isNotEmpty()) {
+                                    clipItems.clear()
+                                    clipItems.addAll(newItems)
+                                    DataManager.saveItems(this, clipItems)
+                                    clipAdapter.updateData(clipItems)
+                                    Toast.makeText(this, "¡Importadas ${newItems.size} al portapapeles!", Toast.LENGTH_SHORT).show()
+                                }
+                            } else {
+                                // Importar Respuestas Rápidas (Formato: Clave | Respuesta)
+                                val newItems = mutableListOf<QuickReplyItem>()
+                                for (block in rawList) {
+                                    val trimmed = block.trim()
+                                    if (trimmed.isNotEmpty()) {
+                                        val parts = trimmed.split("|", limit = 2)
+                                        if (parts.size == 2) {
+                                            newItems.add(QuickReplyItem(parts[0].trim(), parts[1].trim()))
+                                        } else {
+                                            // Si olvidaste ponerle clave al TXT, le asigna una por defecto
+                                            newItems.add(QuickReplyItem("atajo", trimmed))
+                                        }
+                                    }
+                                }
+                                if (newItems.isNotEmpty()) {
+                                    qrItems.clear()
+                                    qrItems.addAll(newItems)
+                                    DataManager.saveQuickReplies(this, qrItems)
+                                    qrAdapter.updateData(qrItems) 
+                                    Toast.makeText(this, "¡Importadas ${newItems.size} respuestas rápidas!", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Toast.makeText(this, "Error procesando el archivo", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        clipItems = DataManager.loadItems(this)
+        clipAdapter.updateData(clipItems)
+        
+        qrItems = DataManager.loadQuickReplies(this)
+        qrAdapter.updateData(qrItems)
+    }
+
+    // --- ADAPTADOR VISUAL PARA LAS RESPUESTAS RÁPIDAS EN LA APP ---
+    inner class QuickReplyAppAdapter(private var items: MutableList<QuickReplyItem>) : RecyclerView.Adapter<QuickReplyAppAdapter.QRViewHolder>() {
+        
+        fun updateData(newItems: MutableList<QuickReplyItem>) {
+            this.items = newItems
+            notifyDataSetChanged()
+        }
+
         inner class QRViewHolder(val view: LinearLayout) : RecyclerView.ViewHolder(view) {
             val tvShortcut = TextView(view.context)
             val tvText = TextView(view.context)
