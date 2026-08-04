@@ -2,7 +2,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.brayan.tecladoanclado">
 
+    <!-- PERMISOS -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.VIBRATE" /> <!-- ¡ESTE ES EL NUEVO! -->
 
     <queries>
         <intent>
@@ -26,7 +28,6 @@
             </intent-filter>
         </activity>
 
-        <!-- NUEVA: Pantalla transparente para invocar a Google -->
         <activity 
             android:name=".VoiceActivity" 
             android:theme="@android:style/Theme.Translucent.NoTitleBar" />
