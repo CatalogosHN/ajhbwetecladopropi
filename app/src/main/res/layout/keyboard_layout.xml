@@ -6,6 +6,13 @@
     android:background="#E0E2E6" 
     android:paddingBottom="8dp">
 
+    <!-- NUEVA BARRA DE HERRAMIENTAS (Arriba de los números) -->
+    <LinearLayout android:layout_width="match_parent" android:layout_height="40dp" android:orientation="horizontal" android:padding="2dp">
+        <Button android:id="@+id/btnMic1" android:tag="MIC" android:text="🎤" style="@style/KeyStyleAction" android:backgroundTint="#FFFFFF" android:layout_weight="1"/>
+        <Button android:tag="CLIPBOARD" android:text="📋" style="@style/KeyStyleAction" android:backgroundTint="#FFFFFF" android:layout_weight="1"/>
+        <Button android:tag="TRANSLATOR" android:text="🌐 Traductor" style="@style/KeyStyleAction" android:backgroundTint="#FFFFFF" android:layout_weight="2"/>
+    </LinearLayout>
+
     <!-- FILA DE NÚMEROS FIJA -->
     <LinearLayout android:layout_width="match_parent" android:layout_height="52dp" android:orientation="horizontal" android:padding="2dp">
         <Button android:text="1" style="@style/KeyStyle" />
@@ -60,12 +67,11 @@
                 <Button android:text="m" style="@style/KeyStyle" />
                 <Button android:tag="DELETE" android:text="⌫" style="@style/KeyStyleAction" android:layout_weight="1.5" />
             </LinearLayout>
+            <!-- Barra espaciadora más grande ahora que los botones están arriba -->
             <LinearLayout android:layout_width="match_parent" android:layout_height="52dp" android:orientation="horizontal" android:padding="2dp">
                 <Button android:tag="MODE_SYM1" android:text="!#1" style="@style/KeyStyleAction" android:layout_weight="1.5" />
-                <Button android:id="@+id/btnMic1" android:tag="MIC" android:text="🎤" style="@style/KeyStyleAction" android:layout_weight="1" />
-                <Button android:tag="CLIPBOARD" android:text="📋" style="@style/KeyStyleAction" android:layout_weight="1" />
                 <Button android:text="," style="@style/KeyStyle" android:layout_weight="1" />
-                <Button android:tag="SPACE" android:text="Español (US)" style="@style/KeyStyleAction" android:layout_weight="3" />
+                <Button android:tag="SPACE" android:text="Español (US)" style="@style/KeyStyleAction" android:layout_weight="4" />
                 <Button android:text="." style="@style/KeyStyle" android:layout_weight="1" />
                 <Button android:tag="ENTER" android:text="↵" style="@style/KeyStyleAction" android:layout_weight="1.5" />
             </LinearLayout>
@@ -117,9 +123,8 @@
             </LinearLayout>
         </LinearLayout>
 
-        <!-- PÁGINA C: SÍMBOLOS 2 (Simplificada) -->
+        <!-- PÁGINA C: SÍMBOLOS 2 -->
         <LinearLayout android:id="@+id/layout_symbols_2" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:visibility="gone">
-            <!-- (Contenido de símbolos 2, igual que antes) -->
             <LinearLayout android:layout_width="match_parent" android:layout_height="52dp" android:orientation="horizontal" android:padding="2dp">
                 <Button android:text="`" style="@style/KeyStyle" />
                 <Button android:text="~" style="@style/KeyStyle" />
@@ -193,7 +198,7 @@
             </LinearLayout>
         </LinearLayout>
 
-        <!-- PORTAPAPELES (Igual que antes) -->
+        <!-- PORTAPAPELES -->
         <LinearLayout android:id="@+id/layout_clipboard" android:layout_width="match_parent" android:layout_height="250dp" android:orientation="vertical" android:visibility="gone" android:background="#121212">
             <LinearLayout android:layout_width="match_parent" android:layout_height="40dp" android:orientation="horizontal" android:padding="4dp" android:background="#1E1E1E">
                 <TextView android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:text="Portapapeles" android:textStyle="bold" android:gravity="center_vertical" android:paddingStart="12dp" android:textColor="#FFFFFF"/>
@@ -206,5 +211,15 @@
             </FrameLayout>
         </LinearLayout>
 
+        <!-- NUEVO: PANTALLA DEL TRADUCTOR -->
+        <LinearLayout android:id="@+id/layout_translator" android:layout_width="match_parent" android:layout_height="250dp" android:orientation="vertical" android:visibility="gone" android:background="#121212">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="45dp" android:orientation="horizontal" android:padding="4dp" android:background="#1E1E1E">
+                <Button android:id="@+id/btnLangToggle" android:text="ES ➔ EN" style="@style/KeyStyleAction" android:layout_width="wrap_content" android:layout_height="match_parent" android:layout_marginEnd="4dp" android:padding="4dp" />
+                <TextView android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:text="Traductor de Google" android:gravity="center" android:textColor="#FFFFFF" android:textStyle="bold"/>
+                <Button android:tag="MODE_LETTERS" android:text="❌ Cerrar" style="@style/KeyStyleAction" android:layout_width="wrap_content" android:layout_height="match_parent" android:padding="4dp" />
+            </LinearLayout>
+            <EditText android:id="@+id/etTranslateInput" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:hint="Escribe aquí para traducir y enviar..." android:textColor="#FFFFFF" android:textColorHint="#888888" android:background="#1E1E1E" android:padding="12dp" android:gravity="top|start" />
+            <Button android:id="@+id/btnTranslateSend" android:layout_width="match_parent" android:layout_height="55dp" android:text="✨ Traducir y Enviar al chat" android:backgroundTint="#2196F3" android:textColor="#FFFFFF" android:textSize="16sp" android:textStyle="bold"/>
+        </LinearLayout>
     </FrameLayout>
 </LinearLayout>
