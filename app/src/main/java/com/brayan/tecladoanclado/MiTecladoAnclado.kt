@@ -56,6 +56,7 @@ class MiTecladoAnclado : InputMethodService() {
         override fun run() {
             playClickFeedback()
             currentInputConnection?.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DEL))
+            currentInputConnection?.sendKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_DEL)) // CORRECCIÓN: Soltar tecla
             deleteHandler.postDelayed(this, 50) 
         }
     }
@@ -88,6 +89,7 @@ class MiTecladoAnclado : InputMethodService() {
         btnClipboardEnter?.setOnClickListener {
             playClickFeedback()
             currentInputConnection?.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_ENTER))
+            currentInputConnection?.sendKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_ENTER)) // CORRECCIÓN: Soltar tecla
         }
 
         val recyclerView = view.findViewById<RecyclerView>(R.id.keyboard_recycler_view)
@@ -119,9 +121,9 @@ class MiTecladoAnclado : InputMethodService() {
 
     // --- MAGIA DEL SONIDO Y VIBRACIÓN ---
     private fun playClickFeedback() {
-        // Sonido al volumen máximo (1.0f)
+        // CORRECCIÓN: Bajamos un 20% el volumen dejándolo en 0.8f
         if (soundEnabled) {
-            audioManager.playSoundEffect(AudioManager.FX_KEYPRESS_STANDARD, 1.0f)
+            audioManager.playSoundEffect(AudioManager.FX_KEYPRESS_STANDARD, 0.8f)
         }
         
         // Vibración más fuerte y sólida (40ms)
@@ -212,6 +214,7 @@ class MiTecladoAnclado : InputMethodService() {
                             MotionEvent.ACTION_DOWN -> {
                                 playClickFeedback()
                                 currentInputConnection?.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DEL))
+                                currentInputConnection?.sendKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_DEL)) // CORRECCIÓN
                                 deleteHandler.postDelayed(deleteRunnable, 400) 
                             }
                             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> deleteHandler.removeCallbacks(deleteRunnable)
@@ -231,7 +234,11 @@ class MiTecladoAnclado : InputMethodService() {
         val tag = button.tag as? String
 
         when (tag) {
-            "ENTER" -> ic.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_ENTER))
+            "ENTER" -> {
+                // CORRECCIÓN: Ahora manda señal de presionar y soltar para que funcione al primer toque
+                ic.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_ENTER))
+                ic.sendKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_ENTER))
+            }
             "SPACE" -> ic.commitText(" ", 1)
             "CLEAR_CLIPBOARD" -> clearUnpinned()
             "MIC" -> startVoiceRecognition()
