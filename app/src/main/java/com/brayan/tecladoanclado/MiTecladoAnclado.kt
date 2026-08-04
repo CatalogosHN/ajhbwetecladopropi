@@ -96,7 +96,13 @@ class MiTecladoAnclado : InputMethodService() {
         }
     }
 
-    private val clipListener = ClipboardManager.OnPrimaryClipChangedListener { checkSystemClipboard() }
+    // --- CORRECCIÓN MÁGICA DEL PORTAPAPELES EN TIEMPO REAL ---
+    private val clipListener = ClipboardManager.OnPrimaryClipChangedListener { 
+        // Le damos 150 milisegundos a Android para que termine de guardar la copia
+        Handler(Looper.getMainLooper()).postDelayed({
+            checkSystemClipboard()
+        }, 150)
+    }
 
     override fun onCreate() {
         super.onCreate()
@@ -311,7 +317,6 @@ class MiTecladoAnclado : InputMethodService() {
         updateLettersCase(layoutLetters as ViewGroup, isUpper)
     }
 
-    // CORRECCIÓN: Método súper seguro para pintar mayúsculas
     private fun updateLettersCase(group: ViewGroup, isUpper: Boolean) {
         for (i in 0 until group.childCount) {
             val child = group.getChildAt(i)
@@ -387,7 +392,6 @@ class MiTecladoAnclado : InputMethodService() {
         }
     }
 
-    // CORRECCIÓN: Quitamos el "return" estricto para que todo se ejecute siempre
     private fun handleKeyPress(button: Button) {
         val tag = button.tag as? String
         if (tag != "ENTER") playClickFeedback() 
@@ -408,13 +412,15 @@ class MiTecladoAnclado : InputMethodService() {
             return
         }
 
+        val ic = currentInputConnection ?: return
+
         when (tag) {
             "ENTER" -> {
                 playEnterSound()
-                currentInputConnection?.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_ENTER))
-                currentInputConnection?.sendKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_ENTER))
+                ic.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_ENTER))
+                ic.sendKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_ENTER))
             }
-            "SPACE" -> currentInputConnection?.commitText(" ", 1)
+            "SPACE" -> ic.commitText(" ", 1)
             "CLEAR_CLIPBOARD" -> clearUnpinned()
             "MIC" -> startVoiceRecognition()
             "SHIFT" -> {
@@ -434,7 +440,7 @@ class MiTecladoAnclado : InputMethodService() {
             "MODE_NUMPAD" -> switchLayout(layoutNumpad) 
             
             else -> {
-                currentInputConnection?.commitText(textToInsert, 1)
+                ic.commitText(textToInsert, 1)
                 if (shiftState == 1 && tag == null && textToInsert.length == 1) setShiftState(0)
             }
         }
@@ -449,22 +455,33 @@ class MiTecladoAnclado : InputMethodService() {
         activeLayout.visibility = View.VISIBLE
     }
 
+    // --- CORRECCIÓN EN LA FUNCIÓN QUE LEE EL PORTAPAPELES ---
     private fun checkSystemClipboard() {
-        if (clipboardManager.hasPrimaryClip()) {
-            val clip = clipboardManager.primaryClip
-            if (clip != null && clip.itemCount > 0) {
-                val newText = clip.getItemAt(0).text?.toString()
-                if (!newText.isNullOrBlank()) {
-                    val items = DataManager.loadItems(this)
-                    if (items.find { it.text == newText } == null) {
-                        items.add(0, ClipboardItem(newText, false))
-                        DataManager.saveItems(this, items)
-                        if (::adapter.isInitialized) adapter.updateData(items)
+        try {
+            if (clipboardManager.hasPrimaryClip()) {
+                val clip = clipboardManager.primaryClip
+                if (clip != null && clip.itemCount > 0) {
+                    // coerceToText nos asegura que leeremos el texto incluso si es texto con emojis o formato raro
+                    val newText = clip.getItemAt(0).coerceToText(this)?.toString()?.trim()
+                    if (!newText.isNullOrBlank()) {
+                        val items = DataManager.loadItems(this)
+                        if (items.find { it.text == newText } == null) {
+                            items.add(0, ClipboardItem(newText, false))
+                            DataManager.saveItems(this, items)
+                        }
                     }
                 }
             }
+        } catch (e: Exception) {
+            // Ignorar errores de seguridad de Android
         }
-        if (::adapter.isInitialized) adapter.updateData(DataManager.loadItems(this))
+        
+        // Refrescar el diseño en tiempo real
+        if (::adapter.isInitialized) {
+            Handler(Looper.getMainLooper()).post {
+                adapter.updateData(DataManager.loadItems(this))
+            }
+        }
     }
 
     private fun handleLongPressItem(item: ClipboardItem, position: Int) {
@@ -491,6 +508,7 @@ class MiTecladoAnclado : InputMethodService() {
     }
 
     private fun updateMicStatus(text: String) { btnMic1?.text = text }
+    
     private fun setupSpeechRecognizer() {
         if (SpeechRecognizer.isRecognitionAvailable(this)) {
             speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this)
@@ -526,8 +544,11 @@ class MiTecladoAnclado : InputMethodService() {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE, "es-HN")
         }
         try {
-            updateMicStatus("🔴"); speechRecognizer.startListening(intent)
-        } catch (e: Exception) { updateMicStatus("🎤") }
+            updateMicStatus("🔴")
+            speechRecognizer.startListening(intent)
+        } catch (e: Exception) { 
+            updateMicStatus("🎤") 
+        }
     }
 
     override fun onDestroy() {
