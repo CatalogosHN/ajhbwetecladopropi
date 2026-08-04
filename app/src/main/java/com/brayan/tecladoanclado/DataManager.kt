@@ -11,6 +11,7 @@ object DataManager {
     private const val PREFS_NAME = "PinnedKeyboardPrefsV2"
     private const val KEY_ITEMS = "clipboard_items"
     private const val KEY_SOUND = "key_sound"
+    private const val KEY_SOUND_ENTER = "key_sound_enter"
     private const val KEY_VIBE = "key_vibration"
 
     private fun getPrefs(context: Context): SharedPreferences {
@@ -28,11 +29,15 @@ object DataManager {
         return Gson().fromJson(json, type)
     }
 
-    // Configuración de Sonido (Por defecto: Activado)
+    // Configuración de Sonido
     fun isSoundEnabled(context: Context): Boolean = getPrefs(context).getBoolean(KEY_SOUND, true)
     fun setSoundEnabled(context: Context, enabled: Boolean) = getPrefs(context).edit().putBoolean(KEY_SOUND, enabled).apply()
 
-    // Configuración de Vibración (Por defecto: Desactivado)
+    // Configuración de Sonido MP3 Enter
+    fun isSoundEnterEnabled(context: Context): Boolean = getPrefs(context).getBoolean(KEY_SOUND_ENTER, true)
+    fun setSoundEnterEnabled(context: Context, enabled: Boolean) = getPrefs(context).edit().putBoolean(KEY_SOUND_ENTER, enabled).apply()
+
+    // Configuración de Vibración
     fun isVibrationEnabled(context: Context): Boolean = getPrefs(context).getBoolean(KEY_VIBE, false)
     fun setVibrationEnabled(context: Context, enabled: Boolean) = getPrefs(context).edit().putBoolean(KEY_VIBE, enabled).apply()
 }
