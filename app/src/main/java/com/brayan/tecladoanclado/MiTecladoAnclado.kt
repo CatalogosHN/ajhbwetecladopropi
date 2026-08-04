@@ -23,7 +23,6 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.inputmethod.EditorInfo
 import android.widget.Button
-import android.widget.EditText
 import android.widget.Toast
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.GridLayoutManager
@@ -39,27 +38,27 @@ class MiTecladoAnclado : InputMethodService() {
     private lateinit var clipboardManager: ClipboardManager
     private lateinit var speechRecognizer: SpeechRecognizer
     
-    // Motores de Audio y Vibración
+    // Motores
     private lateinit var audioManager: AudioManager
     private lateinit var vibrator: Vibrator
     private var soundEnabled = true
+    private var soundEnterEnabled = true
     private var vibrationEnabled = false
     
-    // Estados
     private var shiftState = 0
     private var lastShiftTime = 0L
-    private var isEsToEn = true // Traductor: true = ES->EN, false = EN->ES
+    private var isEsToEn = true 
     
     // Contenedores
+    private lateinit var layoutTopBar: View
+    private lateinit var layoutTranslatorBar: View
     private lateinit var layoutLetters: View
     private lateinit var layoutSymbols1: View
     private lateinit var layoutSymbols2: View
     private lateinit var layoutNumpad: View
     private lateinit var layoutClipboard: View
-    private lateinit var layoutTranslator: View
-    
+
     private var btnMic1: Button? = null
-    private lateinit var etTranslateInput: EditText
     private lateinit var btnLangToggle: Button
     private lateinit var btnTranslateSend: Button
 
@@ -86,15 +85,15 @@ class MiTecladoAnclado : InputMethodService() {
     override fun onCreateInputView(): View {
         val view = layoutInflater.inflate(R.layout.keyboard_layout, null)
         
+        layoutTopBar = view.findViewById(R.id.layout_top_bar)
+        layoutTranslatorBar = view.findViewById(R.id.layout_translator_bar)
         layoutLetters = view.findViewById(R.id.layout_letters)
         layoutSymbols1 = view.findViewById(R.id.layout_symbols_1)
         layoutSymbols2 = view.findViewById(R.id.layout_symbols_2)
         layoutNumpad = view.findViewById(R.id.layout_numpad)
         layoutClipboard = view.findViewById(R.id.layout_clipboard)
-        layoutTranslator = view.findViewById(R.id.layout_translator)
 
         btnMic1 = view.findViewById(R.id.btnMic1)
-        etTranslateInput = view.findViewById(R.id.etTranslateInput)
         btnLangToggle = view.findViewById(R.id.btnLangToggle)
         btnTranslateSend = view.findViewById(R.id.btnTranslateSend)
 
@@ -120,19 +119,18 @@ class MiTecladoAnclado : InputMethodService() {
         recyclerView.adapter = adapter
 
         setKeyListeners(view as ViewGroup)
-        
         return view
     }
 
     override fun onStartInputView(info: EditorInfo?, restarting: Boolean) {
         super.onStartInputView(info, restarting)
         soundEnabled = DataManager.isSoundEnabled(this)
+        soundEnterEnabled = DataManager.isSoundEnterEnabled(this)
         vibrationEnabled = DataManager.isVibrationEnabled(this)
         checkSystemClipboard()
         updateAutoCaps(info)
     }
 
-    // --- MAGIA DEL SONIDO GENERAL ---
     private fun playClickFeedback() {
         if (soundEnabled) audioManager.playSoundEffect(AudioManager.FX_KEYPRESS_STANDARD, 0.8f)
         if (vibrationEnabled) {
@@ -147,19 +145,19 @@ class MiTecladoAnclado : InputMethodService() {
         }
     }
 
-    // --- SONIDO ÉPICO DEL ENTER ---
     private fun playEnterSound() {
-        if (soundEnabled) {
+        if (soundEnterEnabled) {
             try {
-                // Intenta reproducir tu archivo mp3 customizado
                 val mediaPlayer = MediaPlayer.create(this, R.raw.sonido_enter)
                 mediaPlayer.setOnCompletionListener { it.release() }
                 mediaPlayer.start()
             } catch (e: Exception) {
-                // Si olvidaste subir el archivo, suena el normal para que no se crashee
-                audioManager.playSoundEffect(AudioManager.FX_KEYPRESS_RETURN, 1.0f)
+                if (soundEnabled) audioManager.playSoundEffect(AudioManager.FX_KEYPRESS_RETURN, 0.8f)
             }
+        } else if (soundEnabled) {
+            audioManager.playSoundEffect(AudioManager.FX_KEYPRESS_RETURN, 0.8f)
         }
+        
         if (vibrationEnabled) {
             try {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -172,17 +170,22 @@ class MiTecladoAnclado : InputMethodService() {
         }
     }
 
-    // --- LÓGICA DEL TRADUCTOR GOOGLE ---
+    // --- MAGIA DEL TRADUCTOR ---
     private fun setupTranslator() {
         btnLangToggle.setOnClickListener {
+            playClickFeedback()
             isEsToEn = !isEsToEn
             btnLangToggle.text = if (isEsToEn) "ES ➔ EN" else "EN ➔ ES"
         }
 
         btnTranslateSend.setOnClickListener {
-            val textToTranslate = etTranslateInput.text.toString()
+            playClickFeedback()
+            val ic = currentInputConnection ?: return@setOnClickListener
+            // ¡ATENCIÓN! Lee lo que escribiste directamente del chat de WhatsApp
+            val textToTranslate = ic.getTextBeforeCursor(1000, 0)?.toString() ?: ""
+            
             if (textToTranslate.isNotBlank()) {
-                btnTranslateSend.text = "Traduciendo..."
+                btnTranslateSend.text = "⏳ Traduciendo..."
                 btnTranslateSend.isEnabled = false
                 
                 thread {
@@ -201,23 +204,23 @@ class MiTecladoAnclado : InputMethodService() {
                             val translatedText = jsonArray.getJSONArray(0).getJSONArray(0).getString(0)
                             
                             Handler(Looper.getMainLooper()).post {
-                                currentInputConnection?.commitText(translatedText + " ", 1)
-                                etTranslateInput.text.clear()
-                                switchLayout(layoutLetters) // Regresa al teclado normal
-                                btnTranslateSend.text = "✨ Traducir y Enviar al chat"
+                                // Borra tu texto y pega el traducido en su lugar
+                                ic.deleteSurroundingText(textToTranslate.length, 0)
+                                ic.commitText(translatedText, 1)
+                                btnTranslateSend.text = "✨ Traducir lo escrito"
                                 btnTranslateSend.isEnabled = true
                             }
-                        } else {
-                            throw Exception("Error de servidor")
-                        }
+                        } else { throw Exception("Error") }
                     } catch (e: Exception) {
                         Handler(Looper.getMainLooper()).post {
-                            Toast.makeText(this@MiTecladoAnclado, "Error de red. Revisa tu internet.", Toast.LENGTH_SHORT).show()
-                            btnTranslateSend.text = "✨ Traducir y Enviar al chat"
+                            Toast.makeText(this@MiTecladoAnclado, "Error de internet", Toast.LENGTH_SHORT).show()
+                            btnTranslateSend.text = "✨ Traducir lo escrito"
                             btnTranslateSend.isEnabled = true
                         }
                     }
                 }
+            } else {
+                Toast.makeText(this, "Primero escribe algo en el chat", Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -270,6 +273,10 @@ class MiTecladoAnclado : InputMethodService() {
             if (child is ViewGroup) {
                 setKeyListeners(child)
             } else if (child is Button) {
+                val tag = child.tag as? String
+                
+                // ¡AQUÍ ESTÁ LA SOLUCIÓN! Evitamos que los botones del traductor se vuelvan letras
+                if (tag == "IGNORE") continue
                 
                 child.setOnLongClickListener {
                     val text = child.text.toString().lowercase()
@@ -284,12 +291,10 @@ class MiTecladoAnclado : InputMethodService() {
                         currentInputConnection?.commitText(textToInsert, 1)
                         if (shiftState == 1) setShiftState(0) 
                         true 
-                    } else {
-                        false
-                    }
+                    } else { false }
                 }
 
-                if (child.tag == "DELETE") {
+                if (tag == "DELETE") {
                     child.setOnTouchListener { _, event ->
                         when (event.action) {
                             MotionEvent.ACTION_DOWN -> {
@@ -311,10 +316,7 @@ class MiTecladoAnclado : InputMethodService() {
 
     private fun handleKeyPress(button: Button) {
         val tag = button.tag as? String
-        
-        // El Enter tiene su propio sonido especial
-        if (tag != "ENTER") playClickFeedback()
-        
+        if (tag != "ENTER") playClickFeedback() 
         val ic = currentInputConnection ?: return
 
         when (tag) {
@@ -337,8 +339,17 @@ class MiTecladoAnclado : InputMethodService() {
                 lastShiftTime = now
             }
             
-            // Menús
-            "TRANSLATOR" -> switchLayout(layoutTranslator)
+            // Navegación de barras
+            "OPEN_TRANSLATOR" -> {
+                layoutTopBar.visibility = View.GONE
+                layoutTranslatorBar.visibility = View.VISIBLE
+            }
+            "CLOSE_TRANSLATOR" -> {
+                layoutTranslatorBar.visibility = View.GONE
+                layoutTopBar.visibility = View.VISIBLE
+            }
+            
+            // Navegación de teclado
             "CLIPBOARD" -> { checkSystemClipboard(); switchLayout(layoutClipboard) }
             "MODE_LETTERS" -> switchLayout(layoutLetters)
             "MODE_SYM1" -> switchLayout(layoutSymbols1)
@@ -361,7 +372,6 @@ class MiTecladoAnclado : InputMethodService() {
         layoutSymbols2.visibility = View.GONE
         layoutNumpad.visibility = View.GONE
         layoutClipboard.visibility = View.GONE
-        layoutTranslator.visibility = View.GONE
         activeLayout.visibility = View.VISIBLE
     }
 
@@ -406,7 +416,6 @@ class MiTecladoAnclado : InputMethodService() {
         Toast.makeText(this, "Elementos recientes eliminados", Toast.LENGTH_SHORT).show()
     }
 
-    // --- CEREBRO DE VOZ INVISIBLE ---
     private fun updateMicStatus(text: String) { btnMic1?.text = text }
     private fun setupSpeechRecognizer() {
         if (SpeechRecognizer.isRecognitionAvailable(this)) {
