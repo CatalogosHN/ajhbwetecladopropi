@@ -6,6 +6,7 @@
     android:padding="16dp"
     android:background="#121212">
 
+    <!-- Título Original -->
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -15,67 +16,140 @@
         android:textStyle="bold"
         android:paddingBottom="8dp"/>
 
-    <EditText
-        android:id="@+id/etNewPin"
-        android:layout_width="match_parent"
-        android:layout_height="100dp"
-        android:background="#1E1E1E"
-        android:textColor="#FFFFFF"
-        android:textColorHint="#888888"
-        android:hint="Escribe una nueva respuesta rápida aquí..."
-        android:gravity="top|start"
-        android:padding="12dp"
-        android:textSize="14sp"/>
+    <!-- NUEVO: PESTAÑAS DE NAVEGACIÓN -->
+    <LinearLayout 
+        android:layout_width="match_parent" 
+        android:layout_height="wrap_content" 
+        android:orientation="horizontal" 
+        android:layout_marginBottom="12dp">
+        
+        <Button 
+            android:id="@+id/btnTabClip" 
+            android:layout_width="0dp" 
+            android:layout_height="wrap_content" 
+            android:layout_weight="1" 
+            android:text="📋 Portapapeles" 
+            android:backgroundTint="#2196F3" 
+            android:textColor="#FFFFFF" 
+            android:layout_marginEnd="4dp"/>
+            
+        <Button 
+            android:id="@+id/btnTabQR" 
+            android:layout_width="0dp" 
+            android:layout_height="wrap_content" 
+            android:layout_weight="1" 
+            android:text="⚡ Respuestas" 
+            android:backgroundTint="#374151" 
+            android:textColor="#FFFFFF" 
+            android:layout_marginStart="4dp"/>
+    </LinearLayout>
 
-    <Button
-        android:id="@+id/btnAdd"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:text="Guardar Respuesta"
-        android:backgroundTint="#2196F3"
-        android:textColor="#FFFFFF"/>
+    <!-- ZONA PORTAPAPELES -->
+    <LinearLayout 
+        android:id="@+id/layoutClipInput" 
+        android:layout_width="match_parent" 
+        android:layout_height="wrap_content" 
+        android:orientation="vertical">
+        
+        <EditText 
+            android:id="@+id/etNewPin" 
+            android:layout_width="match_parent" 
+            android:layout_height="80dp" 
+            android:background="#1E1E1E" 
+            android:textColor="#FFFFFF" 
+            android:textColorHint="#888888" 
+            android:hint="Escribe un nuevo texto para el portapapeles..." 
+            android:gravity="top|start" 
+            android:padding="12dp" 
+            android:textSize="14sp"/>
+    </LinearLayout>
 
-    <!-- NUEVO: Interruptores de Sonido y Vibración -->
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:layout_marginTop="12dp"
-        android:layout_marginBottom="8dp"
-        android:background="#1E1E1E"
+    <!-- NUEVO: ZONA RESPUESTAS RÁPIDAS -->
+    <LinearLayout 
+        android:id="@+id/layoutQRInput" 
+        android:layout_width="match_parent" 
+        android:layout_height="wrap_content" 
+        android:orientation="vertical" 
+        android:visibility="gone">
+        
+        <EditText 
+            android:id="@+id/etQrShortcut" 
+            android:layout_width="match_parent" 
+            android:layout_height="wrap_content" 
+            android:background="#1E1E1E" 
+            android:textColor="#FFFFFF" 
+            android:textColorHint="#888888" 
+            android:hint="Clave (Ej: metodosdepago)" 
+            android:padding="12dp" 
+            android:layout_marginBottom="8dp" 
+            android:textSize="14sp" 
+            android:maxLines="1"/>
+            
+        <EditText 
+            android:id="@+id/etQrText" 
+            android:layout_width="match_parent" 
+            android:layout_height="80dp" 
+            android:background="#1E1E1E" 
+            android:textColor="#FFFFFF" 
+            android:textColorHint="#888888" 
+            android:hint="Respuesta completa a enviar..." 
+            android:gravity="top|start" 
+            android:padding="12dp" 
+            android:textSize="14sp"/>
+    </LinearLayout>
+
+    <!-- Botón Guardar -->
+    <Button 
+        android:id="@+id/btnAdd" 
+        android:layout_width="match_parent" 
+        android:layout_height="wrap_content" 
+        android:layout_marginTop="8dp" 
+        android:text="Guardar" 
+        android:backgroundTint="#4CAF50" 
+        android:textColor="#FFFFFF" 
+        android:textStyle="bold"/>
+
+    <!-- Interruptores de Configuración -->
+    <LinearLayout 
+        android:layout_width="match_parent" 
+        android:layout_height="wrap_content" 
+        android:orientation="vertical" 
+        android:layout_marginTop="8dp" 
+        android:layout_marginBottom="4dp" 
+        android:background="#1E1E1E" 
         android:padding="8dp">
         
-        <Switch
-            android:id="@+id/switchSound"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="🔊 Sonido de Teclas"
+        <Switch 
+            android:id="@+id/switchSound" 
+            android:layout_width="match_parent" 
+            android:layout_height="wrap_content" 
+            android:text="🔊 Sonido de Teclas" 
             android:textColor="#FFFFFF" 
             android:paddingBottom="4dp"/>
-
-        <Switch
-            android:id="@+id/switchSoundEnter"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="🎵 Sonido Especial (Enter MP3)"
-            android:textColor="#FFFFFF"
+            
+        <Switch 
+            android:id="@+id/switchSoundEnter" 
+            android:layout_width="match_parent" 
+            android:layout_height="wrap_content" 
+            android:text="🎵 Sonido Especial (Enter MP3)" 
+            android:textColor="#FFFFFF" 
             android:paddingBottom="4dp"/>
-
-        <Switch
-            android:id="@+id/switchVibration"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="📳 Vibración de Teclas"
+            
+        <Switch 
+            android:id="@+id/switchVibration" 
+            android:layout_width="match_parent" 
+            android:layout_height="wrap_content" 
+            android:text="📳 Vibración de Teclas" 
             android:textColor="#FFFFFF" />
     </LinearLayout>
 
+    <!-- Botones Importar / Exportar (¡Rescatados!) -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:layout_marginTop="4dp"
-        android:layout_marginBottom="8dp">
+        android:layout_marginBottom="4dp">
 
         <Button
             android:id="@+id/btnExport"
@@ -98,11 +172,12 @@
             android:textColor="#FFFFFF"/>
     </LinearLayout>
 
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/rvMainPins"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
+    <!-- Lista Principal (RecyclerView) -->
+    <androidx.recyclerview.widget.RecyclerView 
+        android:id="@+id/rvMainPins" 
+        android:layout_width="match_parent" 
+        android:layout_height="0dp" 
+        android:layout_weight="1" 
         android:layout_marginTop="4dp"/>
 
 </LinearLayout>
