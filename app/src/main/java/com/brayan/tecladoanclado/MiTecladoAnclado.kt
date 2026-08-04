@@ -29,6 +29,7 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.core.content.ContextCompat
+import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import org.json.JSONArray
@@ -72,6 +73,7 @@ class MiTecladoAnclado : InputMethodService() {
     private lateinit var layoutSymbols2: View
     private lateinit var layoutNumpad: View
     private lateinit var layoutClipboard: View
+    private lateinit var layoutEmojis: View // NUEVO CONTENEDOR EMOJIS
 
     private var btnMic1: Button? = null
     private lateinit var btnLangToggle: Button
@@ -96,12 +98,8 @@ class MiTecladoAnclado : InputMethodService() {
         }
     }
 
-    // --- CORRECCIÓN MÁGICA DEL PORTAPAPELES EN TIEMPO REAL ---
     private val clipListener = ClipboardManager.OnPrimaryClipChangedListener { 
-        // Le damos 150 milisegundos a Android para que termine de guardar la copia
-        Handler(Looper.getMainLooper()).postDelayed({
-            checkSystemClipboard()
-        }, 150)
+        Handler(Looper.getMainLooper()).postDelayed({ checkSystemClipboard() }, 150)
     }
 
     override fun onCreate() {
@@ -126,6 +124,7 @@ class MiTecladoAnclado : InputMethodService() {
         layoutSymbols2 = view.findViewById(R.id.layout_symbols_2)
         layoutNumpad = view.findViewById(R.id.layout_numpad)
         layoutClipboard = view.findViewById(R.id.layout_clipboard)
+        layoutEmojis = view.findViewById(R.id.layout_emojis) // INICIANDO EMOJIS
 
         btnMic1 = view.findViewById(R.id.btnMic1)
         btnLangToggle = view.findViewById(R.id.btnLangToggle)
@@ -147,7 +146,7 @@ class MiTecladoAnclado : InputMethodService() {
             onItemClick = { text -> currentInputConnection?.commitText(text, 1) },
             onItemLongClick = { item, position -> handleLongPressItem(item, position) }
         )
-        rvClipboard.layoutManager = androidx.recyclerview.widget.GridLayoutManager(this, 3) 
+        rvClipboard.layoutManager = GridLayoutManager(this, 3) 
         rvClipboard.adapter = adapter
 
         // Configuración Respuestas Rápidas
@@ -159,6 +158,16 @@ class MiTecladoAnclado : InputMethodService() {
         }
         rvQuickRepliesKeyboard.layoutManager = LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
         rvQuickRepliesKeyboard.adapter = qrAdapter
+
+        // NUEVO: CONFIGURACIÓN EMOJIS MASIVOS
+        val rvEmojis = view.findViewById<RecyclerView>(R.id.rv_emojis_keyboard)
+        val emojiList = "😀,😃,😄,😁,😆,😅,😂,🤣,🥲,☺️,😊,😇,🙂,🙃,😉,😌,😍,🥰,😘,😗,😙,😚,😋,😛,😝,😜,🤪,🤨,🧐,🤓,😎,🥸,🤩,🥳,😏,😒,😞,😔,😟,😕,🙁,☹️,😣,😖,😫,😩,🥺,😢,😭,😤,😠,😡,🤬,🤯,😳,🥵,🥶,😱,😨,😰,😥,😓,🫣,🤭,🫢,🫡,🤔,🤫,🤥,😶,😐,😑,😬,🙄,😯,😦,😧,😮,😲,🥱,😴,🤤,😪,😮‍💨,😵,😵‍💫,🤐,🥴,🤢,🤮,🤧,😷,🤒,🤕,🤑,🤠,😈,👿,👹,👺,🤡,💩,👻,💀,👽,👾,🤖,🎃,🫶,🤲,👐,🙌,👏,🤝,👍,👎,👊,✊,🤛,🤜,🤞,✌️,🫰,🤟,🤘,👌,🤌,🤏,🫳,🫴,👈,👉,👆,👇,☝️,✋,🤚,🖐,🖖,👋,🤙,💪,🦾,🖕,✍️,🙏,🦶,🦵,🦿,💄,💋,👄,🦷,👅,👂,🦻,👃,👣,👁,👀,🫀,🫁,🧠,🗣,👤,👥,🫂,❤️,🧡,💛,💚,💙,💜,🖤,🤍,🤎,💔,❣️,💕,💞,💓,💗,💖,💘,💝,❤️‍🔥,❤️‍🩹,📦,🚚,🛵,🚗,🚕,🚙,🚌,🚓,🚑,🚒,🛒,🛍️,🎁,🏷️,💲,💵,💴,💶,💷,🪙,💰,💳,🧾,✅,❌,⚠️,📌,📍,📲,📱,💻,🖥️,🖨️,📸,🎥,💥,🔥,✨,🌟,💫,⭐,🔥,💯,💢,💬,👁️‍🗨️,🗯️,💭,💤".split(",")
+        
+        rvEmojis.layoutManager = GridLayoutManager(this, 8) // 8 emojis por fila
+        rvEmojis.adapter = EmojiAdapter(emojiList) { emoji ->
+            playClickFeedback()
+            currentInputConnection?.commitText(emoji, 1)
+        }
 
         setKeyListeners(view as ViewGroup)
         return view
@@ -433,6 +442,9 @@ class MiTecladoAnclado : InputMethodService() {
             "CLOSE_TRANSLATOR" -> { layoutTranslatorBar.visibility = View.GONE; layoutTopBar.visibility = View.VISIBLE }
             "OPEN_QR_MODE" -> openQrMode()
             
+            // ABRIR EMOJIS
+            "OPEN_EMOJI" -> switchLayout(layoutEmojis)
+            
             "CLIPBOARD" -> { checkSystemClipboard(); switchLayout(layoutClipboard) }
             "MODE_LETTERS" -> switchLayout(layoutLetters)
             "MODE_SYM1" -> switchLayout(layoutSymbols1)
@@ -452,16 +464,15 @@ class MiTecladoAnclado : InputMethodService() {
         layoutSymbols2.visibility = View.GONE
         layoutNumpad.visibility = View.GONE
         layoutClipboard.visibility = View.GONE
+        layoutEmojis.visibility = View.GONE // Asegura apagar emojis
         activeLayout.visibility = View.VISIBLE
     }
 
-    // --- CORRECCIÓN EN LA FUNCIÓN QUE LEE EL PORTAPAPELES ---
     private fun checkSystemClipboard() {
         try {
             if (clipboardManager.hasPrimaryClip()) {
                 val clip = clipboardManager.primaryClip
                 if (clip != null && clip.itemCount > 0) {
-                    // coerceToText nos asegura que leeremos el texto incluso si es texto con emojis o formato raro
                     val newText = clip.getItemAt(0).coerceToText(this)?.toString()?.trim()
                     if (!newText.isNullOrBlank()) {
                         val items = DataManager.loadItems(this)
@@ -472,15 +483,10 @@ class MiTecladoAnclado : InputMethodService() {
                     }
                 }
             }
-        } catch (e: Exception) {
-            // Ignorar errores de seguridad de Android
-        }
+        } catch (e: Exception) {}
         
-        // Refrescar el diseño en tiempo real
         if (::adapter.isInitialized) {
-            Handler(Looper.getMainLooper()).post {
-                adapter.updateData(DataManager.loadItems(this))
-            }
+            Handler(Looper.getMainLooper()).post { adapter.updateData(DataManager.loadItems(this)) }
         }
     }
 
@@ -546,9 +552,7 @@ class MiTecladoAnclado : InputMethodService() {
         try {
             updateMicStatus("🔴")
             speechRecognizer.startListening(intent)
-        } catch (e: Exception) { 
-            updateMicStatus("🎤") 
-        }
+        } catch (e: Exception) { updateMicStatus("🎤") }
     }
 
     override fun onDestroy() {
@@ -557,16 +561,30 @@ class MiTecladoAnclado : InputMethodService() {
         if (::speechRecognizer.isInitialized) speechRecognizer.destroy()
     }
 
-    inner class QuickReplyKeyboardAdapter(
-        private var items: List<QuickReplyItem>,
-        private val onClick: (QuickReplyItem) -> Unit
-    ) : RecyclerView.Adapter<QuickReplyKeyboardAdapter.QRViewHolder>() {
-        
+    // --- NUEVO ADAPTADOR PARA EMOJIS (Motor de reciclaje infinito) ---
+    inner class EmojiAdapter(private val emojiList: List<String>, private val onEmojiClick: (String) -> Unit) : RecyclerView.Adapter<EmojiAdapter.EmojiViewHolder>() {
+        inner class EmojiViewHolder(val textView: TextView) : RecyclerView.ViewHolder(textView)
+        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): EmojiViewHolder {
+            val tv = TextView(parent.context).apply {
+                layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 120)
+                gravity = android.view.Gravity.CENTER
+                textSize = 28f
+            }
+            return EmojiViewHolder(tv)
+        }
+        override fun onBindViewHolder(holder: EmojiViewHolder, position: Int) {
+            holder.textView.text = emojiList[position]
+            holder.textView.setOnClickListener { onEmojiClick(emojiList[position]) }
+        }
+        override fun getItemCount() = emojiList.size
+    }
+
+    // Adaptador de Respuestas Rápidas
+    inner class QuickReplyKeyboardAdapter(private var items: List<QuickReplyItem>, private val onClick: (QuickReplyItem) -> Unit) : RecyclerView.Adapter<QuickReplyKeyboardAdapter.QRViewHolder>() {
         fun updateData(newItems: List<QuickReplyItem>) {
             this.items = newItems
             notifyDataSetChanged()
         }
-
         inner class QRViewHolder(val view: LinearLayout) : RecyclerView.ViewHolder(view) {
             val tvShortcut = TextView(view.context)
             val tvText = TextView(view.context)
@@ -577,24 +595,19 @@ class MiTecladoAnclado : InputMethodService() {
                 val params = LinearLayout.LayoutParams(400, ViewGroup.LayoutParams.MATCH_PARENT)
                 params.setMargins(8, 8, 8, 8)
                 view.layoutParams = params
-
                 tvShortcut.setTextColor(Color.parseColor("#2196F3"))
                 tvShortcut.textSize = 15f
                 tvShortcut.setTypeface(null, Typeface.BOLD)
-
                 tvText.setTextColor(Color.WHITE)
                 tvText.textSize = 13f
                 tvText.maxLines = 4
                 tvText.ellipsize = android.text.TextUtils.TruncateAt.END
                 tvText.setPadding(0, 8, 0, 0)
-                
                 view.addView(tvShortcut)
                 view.addView(tvText)
             }
         }
-        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): QRViewHolder {
-            return QRViewHolder(LinearLayout(parent.context))
-        }
+        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int) = QRViewHolder(LinearLayout(parent.context))
         override fun onBindViewHolder(holder: QRViewHolder, position: Int) {
             val item = items[position]
             holder.tvShortcut.text = "⚡ ${item.shortcut}"
