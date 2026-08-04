@@ -46,12 +46,15 @@ class MainActivity : AppCompatActivity() {
         
         // Interruptores de Sonido y Vibración
         val switchSound = findViewById<Switch>(R.id.switchSound)
+        val switchSoundEnter = findViewById<Switch>(R.id.switchSoundEnter)
         val switchVibration = findViewById<Switch>(R.id.switchVibration)
 
         switchSound.isChecked = DataManager.isSoundEnabled(this)
+        switchSoundEnter.isChecked = DataManager.isSoundEnterEnabled(this)
         switchVibration.isChecked = DataManager.isVibrationEnabled(this)
 
         switchSound.setOnCheckedChangeListener { _, isChecked -> DataManager.setSoundEnabled(this, isChecked) }
+        switchSoundEnter.setOnCheckedChangeListener { _, isChecked -> DataManager.setSoundEnterEnabled(this, isChecked) }
         switchVibration.setOnCheckedChangeListener { _, isChecked -> DataManager.setVibrationEnabled(this, isChecked) }
 
         adapter = PinnedAdapter(items, onItemClick = {}, onItemLongClick = { _, _ -> })
