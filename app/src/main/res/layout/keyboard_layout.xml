@@ -32,8 +32,8 @@
         </LinearLayout>
 
         <LinearLayout android:id="@+id/layout_translator_bar" android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="horizontal" android:visibility="gone" android:padding="2dp">
-            <Button android:id="@+id/btnLangToggle" android:tag="IGNORE" android:text="ES ➔ EN" style="@style/KeyStyleAction" android:layout_width="wrap_content" android:layout_height="match_parent" android:textSize="13sp" android:paddingStart="8dp" android:paddingEnd="8dp" />
-            <Button android:id="@+id/btnTranslateSend" android:tag="IGNORE" android:text="✨ Traducir texto" style="@style/KeyStyleAction" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:backgroundTint="#2196F3" android:textColor="#FFFFFF" android:textSize="13sp" />
+            <Button android:id="@+id/btnLangToggle" android:tag="LANG_TOGGLE" android:text="ES ➔ EN" style="@style/KeyStyleAction" android:layout_width="wrap_content" android:layout_height="match_parent" android:textSize="13sp" android:paddingStart="8dp" android:paddingEnd="8dp" />
+            <Button android:id="@+id/btnTranslateSend" android:tag="TRANSLATE_SEND" android:text="✨ Traducir texto" style="@style/KeyStyleAction" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:backgroundTint="#2196F3" android:textColor="#FFFFFF" android:textSize="13sp" />
             <Button android:tag="CLOSE_TRANSLATOR" android:text="❌" style="@style/KeyStyleAction" android:layout_width="wrap_content" android:layout_height="match_parent" android:paddingStart="12dp" android:paddingEnd="12dp" />
         </LinearLayout>
     </FrameLayout>
