@@ -25,6 +25,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.inputmethod.EditorInfo
 import android.widget.Button
+import android.widget.FrameLayout // <-- ¡ESTA ES LA LÍNEA QUE FALTA!
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
