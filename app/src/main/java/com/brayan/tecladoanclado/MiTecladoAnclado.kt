@@ -25,6 +25,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.inputmethod.EditorInfo
 import android.widget.Button
+import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
@@ -238,7 +239,6 @@ class MiTecladoAnclado : InputMethodService() {
     }
 
     private fun playClickFeedback() {
-        // Enviar audio y vibración al fondo previene los cuelgues al teclear rápido
         backgroundExecutor.execute {
             if (soundEnabled) audioManager.playSoundEffect(AudioManager.FX_KEYPRESS_STANDARD, 0.8f)
             if (vibrationEnabled) {
@@ -374,6 +374,7 @@ class MiTecladoAnclado : InputMethodService() {
         return false
     }
 
+    // --- CORRECCIÓN TRADUCTOR ---
     private fun translateText(btnSend: Button) {
         playClickFeedback()
         val ic = currentInputConnection ?: return
@@ -386,10 +387,11 @@ class MiTecladoAnclado : InputMethodService() {
                     val sl = if (isEsToEn) "es" else "en"
                     val tl = if (isEsToEn) "en" else "es"
                     val encodedText = URLEncoder.encode(textToTranslate, "UTF-8")
-                    val urlStr = "https://translate.googleapis.com/translate_a/single?client=ipad&sl=$sl&tl=$tl&dt=t&q=$encodedText"
+                    // Volvemos al conector público universal de Google
+                    val urlStr = "https://translate.googleapis.com/translate_a/single?client=gtx&sl=$sl&tl=$tl&dt=t&q=$encodedText"
                     val conn = URL(urlStr).openConnection() as HttpURLConnection
                     conn.requestMethod = "GET"
-                    conn.setRequestProperty("User-Agent", "Mozilla/5.0 (iPad; CPU OS 11_0 like Mac OS X)")
+                    conn.setRequestProperty("User-Agent", "Mozilla/5.0")
                     conn.connectTimeout = 5000
                     
                     if (conn.responseCode == 200) {
@@ -434,6 +436,7 @@ class MiTecladoAnclado : InputMethodService() {
         updateLettersCase(layoutLetters as ViewGroup, isUpper)
     }
 
+    // --- CORRECCIÓN MAYÚSCULAS DE LA FILA DE ARRIBA ---
     private fun updateLettersCase(group: ViewGroup, isUpper: Boolean) {
         for (i in 0 until group.childCount) {
             val child = group.getChildAt(i)
@@ -443,7 +446,8 @@ class MiTecladoAnclado : InputMethodService() {
                 val tag = child.tag as? String
                 if (tag == "SHIFT") {
                     child.text = when(shiftState) { 0 -> "⇧"; 1 -> "⬆"; else -> "⇪" }
-                } else if (tag == null && child.text.length == 1) {
+                // Ahora no importa si la tecla tiene etiqueta de número (ej: Q tiene "1"), la pasa a mayúscula igual.
+                } else if (child.text.length == 1) {
                     val letter = child.text.toString()
                     if (letter[0].isLetter() || letter == "ñ" || letter == "Ñ") {
                         child.text = if (isUpper) letter.uppercase() else letter.lowercase()
@@ -453,7 +457,6 @@ class MiTecladoAnclado : InputMethodService() {
         }
     }
 
-    // --- REVERTIDO A OCLICK Y ONLONGCLICK PARA MÁXIMA CONFIABILIDAD ---
     private fun setKeyListeners(parent: ViewGroup) {
         for (i in 0 until parent.childCount) {
             val child = parent.getChildAt(i)
@@ -461,10 +464,8 @@ class MiTecladoAnclado : InputMethodService() {
             else if (child is Button) {
                 val tag = child.tag as? String
                 
-                // Ignorar sugerencias
                 if (tag == "SUGGESTION") continue
                 
-                // Botones Especiales de Acción
                 val isActionKey = tag in listOf("MIC", "OPEN_TRANSLATOR", "CLIPBOARD", "MODE_LETTERS", "CLEAR_CLIPBOARD", "OPEN_QR_MODE", "CLOSE_QR_MODE", "CLEAR_QR_SEARCH", "OPEN_EMOJI", "MODE_SYM1", "MODE_SYM2", "MODE_NUMPAD", "CLOSE_TRANSLATOR", "IGNORE")
                 
                 if (isActionKey) {
@@ -472,7 +473,6 @@ class MiTecladoAnclado : InputMethodService() {
                     continue
                 }
 
-                // Borrar repetitivo
                 if (tag == "DELETE") {
                     child.setOnTouchListener { _, event ->
                         when (event.action) {
@@ -497,7 +497,6 @@ class MiTecladoAnclado : InputMethodService() {
                     continue
                 }
 
-                // Letras Normales y Símbolos (Toque Simple)
                 child.setOnClickListener { 
                     if (tag == "ENTER" || tag == "SPACE" || tag == "SHIFT") {
                         handleKeyPress(child)
@@ -505,8 +504,11 @@ class MiTecladoAnclado : InputMethodService() {
                         playClickFeedback()
                         val textToInsert = child.text.toString()
                         if (isQrMode) {
-                            if (tag == null) qrSearchQuery += textToInsert.lowercase()
-                            updateQrSearchUI()
+                            // Ignora etiquetas como CLOSE_QR_MODE, etc, solo suma letras/números
+                            if (tag == null || tag.matches(Regex("\\d"))) {
+                                qrSearchQuery += textToInsert.lowercase()
+                                updateQrSearchUI()
+                            }
                         } else {
                             currentInputConnection?.commitText(textToInsert, 1)
                             if (shiftState == 1) setShiftState(0)
@@ -515,7 +517,6 @@ class MiTecladoAnclado : InputMethodService() {
                     }
                 }
 
-                // Pulsación Larga (Tildes y Números Ocultos)
                 if (tag == "ENTER" || tag == "SPACE" || tag == "SHIFT") continue
 
                 child.setOnLongClickListener {
@@ -588,7 +589,10 @@ class MiTecladoAnclado : InputMethodService() {
             }
             "OPEN_TRANSLATOR" -> { layoutTopBar.visibility = View.GONE; layoutSuggestionsBar.visibility = View.GONE; layoutTranslatorBar.visibility = View.VISIBLE }
             "CLOSE_TRANSLATOR" -> { layoutTranslatorBar.visibility = View.GONE; layoutTopBar.visibility = View.VISIBLE }
+            // CORRECCIÓN: Botones de QR Mode y Limpieza
             "OPEN_QR_MODE" -> openQrMode()
+            "CLOSE_QR_MODE" -> closeQrMode()
+            "CLEAR_QR_SEARCH" -> { qrSearchQuery = ""; updateQrSearchUI() }
             "OPEN_EMOJI" -> switchLayout(layoutEmojis)
             "CLIPBOARD" -> { checkSystemClipboard(); switchLayout(layoutClipboard) }
             "MODE_LETTERS" -> switchLayout(layoutLetters)
