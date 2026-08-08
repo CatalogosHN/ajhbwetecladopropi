@@ -122,7 +122,23 @@ class MiTecladoAnclado : InputMethodService() {
         
         learnedWords = DataManager.loadLearnedWords(this)
         if (learnedWords.isEmpty()) {
-            val baseWords = listOf("qué", "cómo", "cuándo", "dónde", "método", "envío", "garantía", "cámara", "teléfono", "también", "está", "días", "gracias", "artículo", "domicilio", "transferencia", "depósito", "número", "página", "tecnología", "promoción", "atención", "inmediata", "compra", "catálogo", "hola", "buenas", "tardes", "días", "noches", "lempiras", "lps")
+            val baseWords = listOf(
+                "qué", "cómo", "cuándo", "dónde", "quién", "por qué", "cuánto",
+                "método", "envío", "garantía", "cámara", "teléfono", "también", "está",
+                "días", "gracias", "artículo", "domicilio", "transferencia", "depósito",
+                "número", "página", "tecnología", "promoción", "atención", "inmediata",
+                "catálogo", "hola", "buenas", "tardes", "noches", "lempiras", "más", "sí",
+                "aquí", "ahí", "allí", "él", "tú", "mí", "éxito", "rápido", "fácil",
+                "útil", "increíble", "excelente", "ubicación", "dirección", "código",
+                "guía", "recibo", "comprobante", "crédito", "débito", "artículos",
+                "único", "electrónica", "audífonos", "batería", "cargador", "imágenes",
+                "vídeo", "música", "tamaño", "volumen", "estás", "será", "hará",
+                "tenía", "había", "podría", "debería", "sería", "mañana", "miércoles",
+                "sábado", "próximo", "último", "máximo", "mínimo", "país", "región",
+                "cámaras", "compra", "venta", "precio", "costo", "descuento", "gratis",
+                "efectivo", "tarjeta", "saldo", "cuenta", "banco", "confirmar", "pedido",
+                "entrega", "paquete", "sucursal", "disponible", "agotado", "color", "peso"
+            )
             learnedWords.addAll(baseWords)
             DataManager.saveLearnedWords(this, learnedWords)
         }
@@ -143,9 +159,12 @@ class MiTecladoAnclado : InputMethodService() {
         btnSuggest3 = view.findViewById(R.id.btnSuggest3)
         
         val suggestListener = View.OnClickListener {
-            val text = it.tag as? String ?: return@OnClickListener
-            playClickFeedback()
-            insertSuggestion(text)
+            // CORRECCIÓN: Leemos el texto directo del botón para que no falle
+            val text = (it as Button).text.toString()
+            if (text.isNotBlank()) {
+                playClickFeedback()
+                insertSuggestion(text)
+            }
         }
         btnSuggest1.setOnClickListener(suggestListener)
         btnSuggest2.setOnClickListener(suggestListener)
@@ -252,11 +271,9 @@ class MiTecladoAnclado : InputMethodService() {
         }
     }
 
-    // --- CORRECCIÓN: CÁLCULO EXACTO DE LA PALABRA PARA REEMPLAZARLA ---
     private fun getCurrentWord(): String {
         val ic = currentInputConnection ?: return ""
         val textBefore = ic.getTextBeforeCursor(50, 0)?.toString() ?: return ""
-        // Toma todas las letras pegadas al cursor hacia atrás
         val word = textBefore.takeLastWhile { it.isLetter() || it == 'ñ' || it == 'Ñ' || it == 'á' || it == 'é' || it == 'í' || it == 'ó' || it == 'ú' }
         return word
     }
@@ -271,23 +288,23 @@ class MiTecladoAnclado : InputMethodService() {
                 removeAccents(it).startsWith(removeAccents(lowerWord)) && it.length >= currentWord.length
             }.sortedBy { it.length }.take(2)
 
-            btnSuggest1.text = currentWord; btnSuggest1.tag = currentWord
+            btnSuggest1.text = currentWord
             
             if (matches.isNotEmpty()) {
                 currentBestSuggestion = matches[0]
                 if (currentWord[0].isUpperCase()) currentBestSuggestion = currentBestSuggestion.replaceFirstChar { it.uppercase() }
                 
-                btnSuggest2.text = currentBestSuggestion; btnSuggest2.tag = currentBestSuggestion
+                btnSuggest2.text = currentBestSuggestion
                 
                 if (matches.size > 1) {
-                    btnSuggest3.text = matches[1]; btnSuggest3.tag = matches[1]
+                    btnSuggest3.text = matches[1]
                 } else {
-                    btnSuggest3.text = ""; btnSuggest3.tag = ""
+                    btnSuggest3.text = ""
                 }
             } else {
                 currentBestSuggestion = ""
-                btnSuggest2.text = ""; btnSuggest2.tag = ""
-                btnSuggest3.text = ""; btnSuggest3.tag = ""
+                btnSuggest2.text = ""
+                btnSuggest3.text = ""
             }
             
             layoutTopBar.visibility = View.GONE
@@ -303,7 +320,6 @@ class MiTecladoAnclado : InputMethodService() {
         val currentWord = getCurrentWord()
         val ic = currentInputConnection ?: return
         if (currentWord.isNotEmpty() && suggestion.isNotEmpty()) {
-            // BORRA EXACTAMENTE LA LONGITUD DE LA PALABRA ACTUAL Y PEGA LA NUEVA
             ic.deleteSurroundingText(currentWord.length, 0)
             ic.commitText("$suggestion ", 1)
             learnWord(suggestion)
@@ -420,11 +436,7 @@ class MiTecladoAnclado : InputMethodService() {
     private fun updateAutoCaps(info: EditorInfo?) {
         if (info != null && shiftState != 2) { 
             val capsMode = currentInputConnection?.getCursorCapsMode(info.inputType) ?: 0
-            if (capsMode != 0) {
-                setShiftState(1)
-            } else if (shiftState == 1) {
-                setShiftState(0)
-            }
+            if (capsMode != 0) setShiftState(1) else if (shiftState == 1) setShiftState(0)
         }
     }
 
@@ -457,13 +469,15 @@ class MiTecladoAnclado : InputMethodService() {
         }
     }
 
-    // --- REESCRITURA MODO GBOARD: LATENCIA CERO Y ACTUACIÓN AL BAJAR EL DEDO ---
     private fun setKeyListeners(parent: ViewGroup) {
         for (i in 0 until parent.childCount) {
             val child = parent.getChildAt(i)
             if (child is ViewGroup) setKeyListeners(child)
             else if (child is Button) {
                 val tag = child.tag as? String
+                
+                // CORRECCIÓN: Ignoramos explícitamente los botones de sugerencias
+                if (tag == "SUGGESTION") continue
                 
                 if (tag == "IGNORE" || tag == "OPEN_QR_MODE" || tag == "OPEN_EMOJI" || tag == "OPEN_TRANSLATOR" || tag == "CLIPBOARD" || tag == "CLOSE_QR_MODE" || tag == "CLEAR_QR_SEARCH") {
                     child.setOnClickListener { handleKeyPress(child) }
@@ -509,7 +523,6 @@ class MiTecladoAnclado : InputMethodService() {
                             
                             if (tag == "ENTER") playEnterSound() else playClickFeedback()
 
-                            // MAGIA GBOARD: LAS LETRAS SE ESCRIBEN INSTANTANEAMENTE AL TOCAR, NO AL LEVANTAR
                             if (tag == null && child.text.length == 1) {
                                 val textToInsert = child.text.toString()
                                 if (isQrMode) {
@@ -541,7 +554,6 @@ class MiTecladoAnclado : InputMethodService() {
                                         }
                                     }
                                     if (!isQrMode) {
-                                        // Borra la letra que escribimos rápido y pone la tilde
                                         currentInputConnection?.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DEL))
                                         currentInputConnection?.sendKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_DEL))
                                         val textToInsert = if (shiftState > 0) accentedChar.uppercase() else accentedChar
@@ -556,7 +568,6 @@ class MiTecladoAnclado : InputMethodService() {
                             v.isPressed = false
                             longPressRunnable?.let { mainHandler.removeCallbacks(it) }
                             
-                            // Si NO fue una pulsación larga, procedemos con los botones especiales (Enter, Espacio)
                             if (!isLongPress && (tag != null || child.text.length != 1)) {
                                 handleKeyPress(child)
                             }
