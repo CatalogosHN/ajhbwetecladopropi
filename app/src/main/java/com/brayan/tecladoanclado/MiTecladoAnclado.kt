@@ -42,6 +42,7 @@ class MiTecladoAnclado : InputMethodService() {
     private lateinit var adapter: PinnedAdapter
     private lateinit var clipboardManager: ClipboardManager
     
+    // Motor para evitar latencia (elimina el "delay" del Vivo X300)
     private val backgroundExecutor = java.util.concurrent.Executors.newSingleThreadExecutor()
     private val mainHandler = Handler(Looper.getMainLooper())
     
@@ -237,6 +238,7 @@ class MiTecladoAnclado : InputMethodService() {
     }
 
     private fun playClickFeedback() {
+        // Enviar audio y vibración al fondo previene los cuelgues al teclear rápido
         backgroundExecutor.execute {
             if (soundEnabled) audioManager.playSoundEffect(AudioManager.FX_KEYPRESS_STANDARD, 0.8f)
             if (vibrationEnabled) {
@@ -372,7 +374,6 @@ class MiTecladoAnclado : InputMethodService() {
         return false
     }
 
-    // --- TRADUCTOR ESTABLE API IOS ---
     private fun translateText(btnSend: Button) {
         playClickFeedback()
         val ic = currentInputConnection ?: return
@@ -452,7 +453,7 @@ class MiTecladoAnclado : InputMethodService() {
         }
     }
 
-    // --- CEREBRO GBOARD 100% RESPONSIVO ---
+    // --- REVERTIDO A OCLICK Y ONLONGCLICK PARA MÁXIMA CONFIABILIDAD ---
     private fun setKeyListeners(parent: ViewGroup) {
         for (i in 0 until parent.childCount) {
             val child = parent.getChildAt(i)
@@ -460,19 +461,22 @@ class MiTecladoAnclado : InputMethodService() {
             else if (child is Button) {
                 val tag = child.tag as? String
                 
+                // Ignorar sugerencias
                 if (tag == "SUGGESTION") continue
                 
-                // Botones especiales sin retraso mecánico
-                if (tag == "MIC" || tag == "OPEN_TRANSLATOR" || tag == "CLIPBOARD" || tag == "MODE_LETTERS" || tag == "CLEAR_CLIPBOARD" || tag == "OPEN_QR_MODE" || tag == "CLOSE_QR_MODE" || tag == "CLEAR_QR_SEARCH" || tag == "OPEN_EMOJI" || tag == "MODE_SYM1" || tag == "MODE_SYM2" || tag == "MODE_NUMPAD" || tag == "CLOSE_TRANSLATOR") {
+                // Botones Especiales de Acción
+                val isActionKey = tag in listOf("MIC", "OPEN_TRANSLATOR", "CLIPBOARD", "MODE_LETTERS", "CLEAR_CLIPBOARD", "OPEN_QR_MODE", "CLOSE_QR_MODE", "CLEAR_QR_SEARCH", "OPEN_EMOJI", "MODE_SYM1", "MODE_SYM2", "MODE_NUMPAD", "CLOSE_TRANSLATOR", "IGNORE")
+                
+                if (isActionKey) {
                     child.setOnClickListener { handleKeyPress(child) }
                     continue
                 }
 
+                // Borrar repetitivo
                 if (tag == "DELETE") {
-                    child.setOnTouchListener { v, event ->
+                    child.setOnTouchListener { _, event ->
                         when (event.action) {
                             MotionEvent.ACTION_DOWN -> {
-                                v.setBackgroundColor(Color.parseColor("#444444")) // Feedback Gboard
                                 playClickFeedback()
                                 if (isQrMode) {
                                     if (qrSearchQuery.isNotEmpty()) {
@@ -482,87 +486,63 @@ class MiTecladoAnclado : InputMethodService() {
                                 } else {
                                     currentInputConnection?.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DEL))
                                     currentInputConnection?.sendKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_DEL))
-                                    mainHandler.postDelayed({ updateSuggestionsUI() }, 10)
+                                    mainHandler.postDelayed({ updateSuggestionsUI() }, 20)
                                 }
                                 mainHandler.postDelayed(deleteRunnable, 400) 
                             }
-                            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                                v.setBackgroundColor(Color.TRANSPARENT)
-                                mainHandler.removeCallbacks(deleteRunnable)
-                            }
+                            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> mainHandler.removeCallbacks(deleteRunnable)
                         }
                         true
                     }
                     continue
                 }
 
-                var isLongPress = false
-                var longPressRunnable: Runnable? = null
-
-                child.setOnTouchListener { v, event ->
-                    when (event.action) {
-                        MotionEvent.ACTION_DOWN -> {
-                            isLongPress = false
-                            
-                            // Efecto visual instantáneo como Gboard
-                            if (tag == "SPACE" || tag == "ENTER" || tag == "SHIFT") {
-                                v.setBackgroundColor(Color.parseColor("#444444"))
-                            } else {
-                                v.setBackgroundColor(Color.parseColor("#3A3A3A"))
-                            }
-                            
-                            if (tag == "ENTER") playEnterSound() else playClickFeedback()
-
-                            // MAGIA GBOARD: ESCRITURA EN ACTION_DOWN (0 LATENCIA)
-                            if (tag == null && child.text.length == 1) {
-                                val textToInsert = child.text.toString()
-                                if (isQrMode) {
-                                    qrSearchQuery += textToInsert.lowercase()
-                                    updateQrSearchUI()
-                                } else {
-                                    currentInputConnection?.commitText(textToInsert, 1)
-                                    if (shiftState == 1) setShiftState(0)
-                                    mainHandler.postDelayed({ updateSuggestionsUI() }, 10)
-                                }
-                            } else if (tag == "SPACE" || tag == "ENTER") {
-                                handleKeyPress(child)
-                            }
-
-                            // Calcular tildes y números ocultos (presión larga)
-                            val text = child.text.toString().lowercase()
-                            val numTag = child.tag as? String
-                            val accentedChar = when(text) { "a"->"á"; "e"->"é"; "i"->"í"; "o"->"ó"; "u"->"ú"; "n"->"ñ"; else -> null }
-                            
-                            if (accentedChar != null || (numTag != null && numTag.matches(Regex("\\d")))) {
-                                longPressRunnable = Runnable {
-                                    isLongPress = true
-                                    backgroundExecutor.execute {
-                                        if (vibrationEnabled) {
-                                            try {
-                                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) vibrator.vibrate(VibrationEffect.createOneShot(20, VibrationEffect.DEFAULT_AMPLITUDE))
-                                                else @Suppress("DEPRECATION") vibrator.vibrate(20)
-                                            } catch (e: Exception) {}
-                                        }
-                                    }
-                                    if (!isQrMode) {
-                                        currentInputConnection?.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DEL))
-                                        currentInputConnection?.sendKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_DEL))
-                                        
-                                        val textToInsert = if (numTag != null && numTag.matches(Regex("\\d"))) numTag else if (shiftState > 0) accentedChar?.uppercase() else accentedChar
-                                        currentInputConnection?.commitText(textToInsert, 1)
-                                        mainHandler.postDelayed({ updateSuggestionsUI() }, 10)
-                                    }
-                                }
-                                mainHandler.postDelayed(longPressRunnable!!, 350)
-                            }
-                        }
-                        MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                            v.setBackgroundColor(Color.TRANSPARENT)
-                            longPressRunnable?.let { mainHandler.removeCallbacks(it) }
-                            if (tag == "SHIFT") handleKeyPress(child)
+                // Letras Normales y Símbolos (Toque Simple)
+                child.setOnClickListener { 
+                    if (tag == "ENTER" || tag == "SPACE" || tag == "SHIFT") {
+                        handleKeyPress(child)
+                    } else {
+                        playClickFeedback()
+                        val textToInsert = child.text.toString()
+                        if (isQrMode) {
+                            if (tag == null) qrSearchQuery += textToInsert.lowercase()
+                            updateQrSearchUI()
+                        } else {
+                            currentInputConnection?.commitText(textToInsert, 1)
+                            if (shiftState == 1) setShiftState(0)
+                            mainHandler.postDelayed({ updateSuggestionsUI() }, 20)
                         }
                     }
-                    true
+                }
+
+                // Pulsación Larga (Tildes y Números Ocultos)
+                if (tag == "ENTER" || tag == "SPACE" || tag == "SHIFT") continue
+
+                child.setOnLongClickListener {
+                    val text = child.text.toString().lowercase()
+                    val numTag = tag
+                    val accentedChar = when(text) { "a"->"á"; "e"->"é"; "i"->"í"; "o"->"ó"; "u"->"ú"; "n"->"ñ"; "!"->"¡"; "?"->"¿"; else -> null }
+                    
+                    if (accentedChar != null || (numTag != null && numTag.matches(Regex("\\d")))) {
+                        backgroundExecutor.execute {
+                            if (vibrationEnabled) {
+                                try {
+                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) vibrator.vibrate(VibrationEffect.createOneShot(20, VibrationEffect.DEFAULT_AMPLITUDE))
+                                    else @Suppress("DEPRECATION") vibrator.vibrate(20)
+                                } catch (e: Exception) {}
+                            }
+                        }
+                        
+                        if (!isQrMode) {
+                            val textToInsert = if (numTag != null && numTag.matches(Regex("\\d"))) numTag else if (shiftState > 0) accentedChar?.uppercase() else accentedChar
+                            currentInputConnection?.commitText(textToInsert, 1)
+                            if (shiftState == 1) setShiftState(0)
+                            mainHandler.postDelayed({ updateSuggestionsUI() }, 20)
+                        }
+                        true
+                    } else {
+                        false
+                    }
                 }
             }
         }
@@ -581,10 +561,12 @@ class MiTecladoAnclado : InputMethodService() {
 
         when (tag) {
             "ENTER" -> {
+                playEnterSound()
                 ic.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_ENTER))
                 ic.sendKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_ENTER))
             }
             "SPACE" -> {
+                playClickFeedback()
                 val word = getCurrentWord()
                 if (autocorrectEnabled && currentBestSuggestion.isNotEmpty() && removeAccents(currentBestSuggestion.lowercase()) == removeAccents(word.lowercase()) && currentBestSuggestion != word) {
                     ic.deleteSurroundingText(word.length, 0)
@@ -594,11 +576,12 @@ class MiTecladoAnclado : InputMethodService() {
                     if (word.isNotEmpty()) learnWord(word)
                     ic.commitText(" ", 1)
                 }
-                mainHandler.postDelayed({ updateSuggestionsUI() }, 10)
+                mainHandler.postDelayed({ updateSuggestionsUI() }, 20)
             }
             "CLEAR_CLIPBOARD" -> clearUnpinned()
             "MIC" -> startVoiceRecognition()
             "SHIFT" -> {
+                playClickFeedback()
                 val now = System.currentTimeMillis()
                 if (now - lastShiftTime < 400) setShiftState(2) else setShiftState(if (shiftState == 0) 1 else 0)
                 lastShiftTime = now
@@ -667,10 +650,8 @@ class MiTecladoAnclado : InputMethodService() {
         Toast.makeText(this, "Borrados", Toast.LENGTH_SHORT).show()
     }
 
-    // --- NUEVO DICTADO POR VOZ FUERZA NATIVA ---
     private fun startVoiceRecognition() {
         try {
-            // Lanza la ventana de Google nativa, obligando a funcionar en Vivo y Samsung
             val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
                 putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
                 putExtra(RecognizerIntent.EXTRA_LANGUAGE, "es-HN")
