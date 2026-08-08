@@ -73,13 +73,21 @@ class MainActivity : AppCompatActivity() {
         val switchSound = findViewById<Switch>(R.id.switchSound)
         val switchSoundEnter = findViewById<Switch>(R.id.switchSoundEnter)
         val switchVibration = findViewById<Switch>(R.id.switchVibration)
+
+        val switchAutocorrect = findViewById<Switch>(R.id.switchAutocorrect)
+        
         switchSound.isChecked = DataManager.isSoundEnabled(this)
         switchSoundEnter.isChecked = DataManager.isSoundEnterEnabled(this)
         switchVibration.isChecked = DataManager.isVibrationEnabled(this)
+
+        switchAutocorrect.isChecked = DataManager.isAutocorrectEnabled(this)
+        
         switchSound.setOnCheckedChangeListener { _, isChecked -> DataManager.setSoundEnabled(this, isChecked) }
         switchSoundEnter.setOnCheckedChangeListener { _, isChecked -> DataManager.setSoundEnterEnabled(this, isChecked) }
         switchVibration.setOnCheckedChangeListener { _, isChecked -> DataManager.setVibrationEnabled(this, isChecked) }
 
+        switchAutocorrect.setOnCheckedChangeListener { _, isChecked -> DataManager.setAutocorrectEnabled(this, isChecked) }
+        
         // Inicializar Adaptadores
         clipAdapter = PinnedAdapter(clipItems, onItemClick = {}, onItemLongClick = { _, _ -> })
         qrAdapter = QuickReplyAppAdapter(qrItems)
