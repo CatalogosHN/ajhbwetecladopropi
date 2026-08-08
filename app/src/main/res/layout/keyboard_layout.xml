@@ -45,9 +45,8 @@
 
     <FrameLayout android:layout_width="match_parent" android:layout_height="wrap_content">
         
-        <!-- PÁGINA A: LETRAS (ESTILO GBOARD CON NÚMEROS) -->
+        <!-- PÁGINA A: LETRAS -->
         <LinearLayout android:id="@+id/layout_letters" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:visibility="visible">
-            <!-- FILA 1 -->
             <LinearLayout android:layout_width="match_parent" android:layout_height="56dp" android:orientation="horizontal" android:paddingStart="2dp" android:paddingEnd="2dp" android:paddingTop="4dp">
                 <Button android:text="q" android:tag="1" style="@style/KeyStyle" />
                 <Button android:text="w" android:tag="2" style="@style/KeyStyle" />
@@ -60,7 +59,6 @@
                 <Button android:text="o" android:tag="9" style="@style/KeyStyle" />
                 <Button android:text="p" android:tag="0" style="@style/KeyStyle" />
             </LinearLayout>
-            <!-- FILA 2 -->
             <LinearLayout android:layout_width="match_parent" android:layout_height="56dp" android:orientation="horizontal" android:paddingStart="12dp" android:paddingEnd="12dp" android:paddingTop="4dp">
                 <Button android:text="a" style="@style/KeyStyle" />
                 <Button android:text="s" style="@style/KeyStyle" />
@@ -73,7 +71,6 @@
                 <Button android:text="l" style="@style/KeyStyle" />
                 <Button android:text="ñ" style="@style/KeyStyle" />
             </LinearLayout>
-            <!-- FILA 3 -->
             <LinearLayout android:layout_width="match_parent" android:layout_height="56dp" android:orientation="horizontal" android:paddingStart="2dp" android:paddingEnd="2dp" android:paddingTop="4dp">
                 <Button android:tag="SHIFT" android:text="⇧" style="@style/KeyStyleAction" android:layout_weight="1.5" android:backgroundTint="#3A3A3A" />
                 <Button android:text="z" style="@style/KeyStyle" />
@@ -85,9 +82,9 @@
                 <Button android:text="m" style="@style/KeyStyle" />
                 <Button android:tag="DELETE" android:text="⌫" style="@style/KeyStyleAction" android:layout_weight="1.5" android:backgroundTint="#3A3A3A" />
             </LinearLayout>
-            <!-- FILA 4 -->
+            <!-- CORRECCIÓN AQUÍ: \?123 -->
             <LinearLayout android:layout_width="match_parent" android:layout_height="56dp" android:orientation="horizontal" android:paddingStart="2dp" android:paddingEnd="2dp" android:paddingTop="4dp">
-                <Button android:tag="MODE_SYM1" android:text="?123" style="@style/KeyStyleAction" android:layout_weight="1.5" android:backgroundTint="#3A3A3A" android:textSize="14sp" />
+                <Button android:tag="MODE_SYM1" android:text="\?123" style="@style/KeyStyleAction" android:layout_weight="1.5" android:backgroundTint="#3A3A3A" android:textSize="14sp" />
                 <Button android:text="," style="@style/KeyStyle" android:layout_weight="1" android:backgroundTint="#3A3A3A" />
                 <Button android:tag="OPEN_EMOJI" android:text="😀" style="@style/KeyStyleAction" android:layout_weight="1" android:backgroundTint="#3A3A3A" />
                 <Button android:tag="SPACE" android:text="Español" style="@style/KeyStyleAction" android:layout_weight="5" android:backgroundTint="#555555" android:textColor="#FFFFFF" />
@@ -122,6 +119,7 @@
                 <Button android:text="(" style="@style/KeyStyle" />
                 <Button android:text=")" style="@style/KeyStyle" />
             </LinearLayout>
+            <!-- CORRECCIÓN AQUÍ: \? -->
             <LinearLayout android:layout_width="match_parent" android:layout_height="56dp" android:orientation="horizontal" android:padding="2dp">
                 <Button android:tag="MODE_SYM2" android:text="1/2" style="@style/KeyStyleAction" android:layout_weight="1.5" android:backgroundTint="#3A3A3A"/>
                 <Button android:text="-" style="@style/KeyStyle" />
@@ -129,7 +127,7 @@
                 <Button android:text="&quot;" style="@style/KeyStyle" />
                 <Button android:text=":" style="@style/KeyStyle" />
                 <Button android:text=";" style="@style/KeyStyle" />
-                <Button android:text="?" style="@style/KeyStyle" />
+                <Button android:text="\?" style="@style/KeyStyle" />
                 <Button android:tag="DELETE" android:text="⌫" style="@style/KeyStyleAction" android:layout_weight="1.5" android:backgroundTint="#3A3A3A"/>
             </LinearLayout>
             <LinearLayout android:layout_width="match_parent" android:layout_height="56dp" android:orientation="horizontal" android:padding="2dp">
