@@ -210,7 +210,7 @@
             </LinearLayout>
         </LinearLayout>
 
-        <!-- PORTAPAPELES -->
+        <!-- PORTAPAPELES CON EL BOTÓN ENTER RESCATADO -->
         <LinearLayout android:id="@+id/layout_clipboard" android:layout_width="match_parent" android:layout_height="250dp" android:orientation="vertical" android:visibility="gone" android:background="#121212">
             <LinearLayout android:layout_width="match_parent" android:layout_height="40dp" android:orientation="horizontal" android:padding="4dp" android:background="#1E1E1E">
                 <TextView android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:text="Portapapeles" android:textStyle="bold" android:gravity="center_vertical" android:paddingStart="12dp" android:textColor="#FFFFFF"/>
@@ -219,6 +219,9 @@
             </LinearLayout>
             <FrameLayout android:layout_width="match_parent" android:layout_height="match_parent">
                 <androidx.recyclerview.widget.RecyclerView android:id="@+id/keyboard_recycler_view" android:layout_width="match_parent" android:layout_height="match_parent" android:padding="4dp"/>
+                
+                <!-- ESTE ES EL BOTÓN QUE CAUSÓ EL ERROR, ¡AQUÍ ESTÁ DE VUELTA! -->
+                <Button android:id="@+id/btnClipboardEnter" android:tag="ENTER" android:layout_width="50dp" android:layout_height="50dp" android:layout_gravity="bottom|end" android:layout_margin="16dp" android:text="↵" android:textColor="#FFFFFF" android:textSize="24sp" android:elevation="6dp" android:backgroundTint="#4285F4"/>
             </FrameLayout>
         </LinearLayout>
 
