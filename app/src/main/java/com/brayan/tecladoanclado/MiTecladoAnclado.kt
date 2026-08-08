@@ -50,6 +50,9 @@ class MiTecladoAnclado : InputMethodService() {
     private var soundEnterEnabled = true
     private var vibrationEnabled = false
     private var autocorrectEnabled = true
+
+    // ¡AQUÍ VA EL NUEVO MOTOR TURBO GBOARD! 👇
+    private val backgroundExecutor = java.util.concurrent.Executors.newSingleThreadExecutor()
     
     // Memoria de Palabras
     private var learnedWords = mutableSetOf<String>()
