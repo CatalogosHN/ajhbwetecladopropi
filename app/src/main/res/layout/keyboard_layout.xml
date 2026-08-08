@@ -6,6 +6,15 @@
     android:background="#E0E2E6" 
     android:paddingBottom="8dp">
 
+    <!-- BARRA DE SUGERENCIAS Y AUTOCORRECTOR (Se oculta si no hay palabras) -->
+    <LinearLayout android:id="@+id/layout_suggestions_bar" android:layout_width="match_parent" android:layout_height="42dp" android:orientation="horizontal" android:visibility="gone" android:background="#D1D4D9" android:padding="2dp">
+        <Button android:id="@+id/btnSuggest1" style="@style/KeyStyle" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:backgroundTint="#E0E2E6" android:textAllCaps="false" android:textSize="15sp" android:textColor="#555555" />
+        <View android:layout_width="1dp" android:layout_height="match_parent" android:background="#B0B0B0" android:layout_margin="4dp"/>
+        <Button android:id="@+id/btnSuggest2" style="@style/KeyStyle" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:backgroundTint="#FFFFFF" android:textStyle="bold" android:textAllCaps="false" android:textSize="16sp" android:textColor="#000000" />
+        <View android:layout_width="1dp" android:layout_height="match_parent" android:background="#B0B0B0" android:layout_margin="4dp"/>
+        <Button android:id="@+id/btnSuggest3" style="@style/KeyStyle" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:backgroundTint="#E0E2E6" android:textAllCaps="false" android:textSize="15sp" android:textColor="#555555" />
+    </LinearLayout>
+
     <!-- TOP BARS -->
     <FrameLayout android:layout_width="match_parent" android:layout_height="48dp">
         <!-- BARRA NORMAL -->
@@ -32,7 +41,7 @@
         </LinearLayout>
     </FrameLayout>
 
-    <!-- LISTA DE RESPUESTAS (Aparece al buscar) -->
+    <!-- LISTA DE RESPUESTAS RÁPIDAS -->
     <androidx.recyclerview.widget.RecyclerView android:id="@+id/rv_quick_replies_keyboard" android:layout_width="match_parent" android:layout_height="180dp" android:visibility="gone" android:background="#121212" android:padding="4dp" />
 
     <!-- FILA DE NÚMEROS FIJA -->
