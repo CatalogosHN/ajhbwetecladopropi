@@ -119,26 +119,39 @@ class MiTecladoAnclado : InputMethodService() {
         vibrator = getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
         
         learnedWords = DataManager.loadLearnedWords(this)
-        if (learnedWords.isEmpty()) {
-            val baseWords = listOf(
-                "qué", "cómo", "cuándo", "dónde", "quién", "por qué", "cuánto",
-                "método", "envío", "garantía", "cámara", "teléfono", "también", "está",
-                "días", "gracias", "artículo", "domicilio", "transferencia", "depósito",
-                "número", "página", "tecnología", "promoción", "atención", "inmediata",
-                "catálogo", "hola", "buenas", "tardes", "noches", "lempiras", "más", "sí",
-                "aquí", "ahí", "allí", "él", "tú", "mí", "éxito", "rápido", "fácil",
-                "útil", "increíble", "excelente", "ubicación", "dirección", "código",
-                "guía", "recibo", "comprobante", "crédito", "débito", "artículos",
-                "único", "electrónica", "audífonos", "batería", "cargador", "imágenes",
-                "vídeo", "música", "tamaño", "volumen", "estás", "será", "hará",
-                "tenía", "había", "podría", "debería", "sería", "mañana", "miércoles",
-                "sábado", "próximo", "último", "máximo", "mínimo", "país", "región",
-                "cámaras", "compra", "venta", "precio", "costo", "descuento", "gratis",
-                "efectivo", "tarjeta", "saldo", "cuenta", "banco", "confirmar", "pedido",
-                "entrega", "paquete", "sucursal", "disponible", "agotado", "color", "peso"
-            )
-            learnedWords.addAll(baseWords)
-            DataManager.saveLearnedWords(this, learnedWords)
+        
+        // MAGIA GBOARD: Lector del Diccionario Masivo Local
+        backgroundExecutor.execute {
+            try {
+                // Intenta cargar tu archivo res/raw/diccionario.txt
+                val identifier = resources.getIdentifier("diccionario", "raw", packageName)
+                if (identifier != 0) {
+                    val inputStream = resources.openRawResource(identifier)
+                    val dictWords = inputStream.bufferedReader().readLines().map { it.trim().lowercase() }.filter { it.isNotBlank() }
+                    learnedWords.addAll(dictWords)
+                } else if (learnedWords.isEmpty()) {
+                    // Si no creas el archivo, inyecta este diccionario de salvavidas
+                    val baseWords = listOf(
+                        "qué", "cómo", "cuándo", "dónde", "quién", "por qué", "cuánto",
+                        "método", "envío", "garantía", "cámara", "teléfono", "también", "está",
+                        "días", "gracias", "artículo", "domicilio", "transferencia", "depósito",
+                        "número", "página", "tecnología", "promoción", "atención", "inmediata",
+                        "catálogo", "hola", "buenas", "tardes", "noches", "lempiras", "más", "sí",
+                        "aquí", "ahí", "allí", "él", "tú", "mí", "éxito", "rápido", "fácil",
+                        "útil", "increíble", "excelente", "ubicación", "dirección", "código",
+                        "guía", "recibo", "comprobante", "crédito", "débito", "artículos",
+                        "único", "electrónica", "audífonos", "batería", "cargador", "imágenes",
+                        "vídeo", "música", "tamaño", "volumen", "estás", "será", "hará",
+                        "tenía", "había", "podría", "debería", "sería", "mañana", "miércoles",
+                        "sábado", "próximo", "último", "máximo", "mínimo", "país", "región",
+                        "cámaras", "compra", "venta", "precio", "costo", "descuento", "gratis",
+                        "efectivo", "tarjeta", "saldo", "cuenta", "banco", "confirmar", "pedido",
+                        "entrega", "paquete", "sucursal", "disponible", "agotado", "color", "peso"
+                    )
+                    learnedWords.addAll(baseWords)
+                    DataManager.saveLearnedWords(this@MiTecladoAnclado, learnedWords)
+                }
+            } catch (e: Exception) {}
         }
     }
 
@@ -229,7 +242,6 @@ class MiTecladoAnclado : InputMethodService() {
         vibrationEnabled = DataManager.isVibrationEnabled(this)
         autocorrectEnabled = DataManager.isAutocorrectEnabled(this)
         allQrItems = DataManager.loadQuickReplies(this)
-        learnedWords = DataManager.loadLearnedWords(this)
         
         closeQrMode()
         checkSystemClipboard()
@@ -284,9 +296,13 @@ class MiTecladoAnclado : InputMethodService() {
         
         if (currentWord.length >= 2) {
             val lowerWord = currentWord.lowercase()
-            val matches = learnedWords.filter { 
-                removeAccents(it).startsWith(removeAccents(lowerWord)) && it.length >= currentWord.length
-            }.sortedBy { it.length }.take(2)
+            val cleanLower = removeAccents(lowerWord)
+
+            // OPTIMIZACIÓN EXTREMA MODO GBOARD: asSequence() permite buscar miles de palabras instantáneamente
+            val matches = learnedWords.asSequence()
+                .filter { removeAccents(it).startsWith(cleanLower) && it.length >= currentWord.length && it != lowerWord }
+                .take(2)
+                .toList()
 
             btnSuggest1.text = currentWord
             
@@ -322,8 +338,11 @@ class MiTecladoAnclado : InputMethodService() {
 
     private fun learnWord(word: String) {
         if (word.length > 2) {
-            learnedWords.add(word.lowercase())
-            backgroundExecutor.execute { DataManager.saveLearnedWords(this, learnedWords) }
+            val lowerWord = word.lowercase()
+            if (!learnedWords.contains(lowerWord)) {
+                learnedWords.add(lowerWord)
+                backgroundExecutor.execute { DataManager.saveLearnedWords(this, learnedWords) }
+            }
         }
     }
 
@@ -374,7 +393,6 @@ class MiTecladoAnclado : InputMethodService() {
         return false
     }
 
-    // --- CORRECCIÓN TRADUCTOR ---
     private fun translateText(btnSend: Button) {
         playClickFeedback()
         val ic = currentInputConnection ?: return
@@ -387,7 +405,6 @@ class MiTecladoAnclado : InputMethodService() {
                     val sl = if (isEsToEn) "es" else "en"
                     val tl = if (isEsToEn) "en" else "es"
                     val encodedText = URLEncoder.encode(textToTranslate, "UTF-8")
-                    // Volvemos al conector público universal de Google
                     val urlStr = "https://translate.googleapis.com/translate_a/single?client=gtx&sl=$sl&tl=$tl&dt=t&q=$encodedText"
                     val conn = URL(urlStr).openConnection() as HttpURLConnection
                     conn.requestMethod = "GET"
@@ -436,7 +453,6 @@ class MiTecladoAnclado : InputMethodService() {
         updateLettersCase(layoutLetters as ViewGroup, isUpper)
     }
 
-    // --- CORRECCIÓN MAYÚSCULAS DE LA FILA DE ARRIBA ---
     private fun updateLettersCase(group: ViewGroup, isUpper: Boolean) {
         for (i in 0 until group.childCount) {
             val child = group.getChildAt(i)
@@ -446,7 +462,6 @@ class MiTecladoAnclado : InputMethodService() {
                 val tag = child.tag as? String
                 if (tag == "SHIFT") {
                     child.text = when(shiftState) { 0 -> "⇧"; 1 -> "⬆"; else -> "⇪" }
-                // Ahora no importa si la tecla tiene etiqueta de número (ej: Q tiene "1"), la pasa a mayúscula igual.
                 } else if (child.text.length == 1) {
                     val letter = child.text.toString()
                     if (letter[0].isLetter() || letter == "ñ" || letter == "Ñ") {
@@ -504,7 +519,6 @@ class MiTecladoAnclado : InputMethodService() {
                         playClickFeedback()
                         val textToInsert = child.text.toString()
                         if (isQrMode) {
-                            // Ignora etiquetas como CLOSE_QR_MODE, etc, solo suma letras/números
                             if (tag == null || tag.matches(Regex("\\d"))) {
                                 qrSearchQuery += textToInsert.lowercase()
                                 updateQrSearchUI()
@@ -589,7 +603,6 @@ class MiTecladoAnclado : InputMethodService() {
             }
             "OPEN_TRANSLATOR" -> { layoutTopBar.visibility = View.GONE; layoutSuggestionsBar.visibility = View.GONE; layoutTranslatorBar.visibility = View.VISIBLE }
             "CLOSE_TRANSLATOR" -> { layoutTranslatorBar.visibility = View.GONE; layoutTopBar.visibility = View.VISIBLE }
-            // CORRECCIÓN: Botones de QR Mode y Limpieza
             "OPEN_QR_MODE" -> openQrMode()
             "CLOSE_QR_MODE" -> closeQrMode()
             "CLEAR_QR_SEARCH" -> { qrSearchQuery = ""; updateQrSearchUI() }
