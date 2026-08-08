@@ -89,7 +89,6 @@ class MiTecladoAnclado : InputMethodService() {
     private lateinit var layoutEmojis: View 
 
     private var btnMic1: Button? = null
-    private lateinit var btnLangToggle: Button
     private var isEsToEn = true
 
     private val deleteRunnable = object : Runnable {
@@ -170,15 +169,6 @@ class MiTecladoAnclado : InputMethodService() {
         layoutEmojis = view.findViewById(R.id.layout_emojis) 
 
         btnMic1 = view.findViewById(R.id.btnMic1)
-        btnLangToggle = view.findViewById(R.id.btnLangToggle)
-        
-        val btnTranslateSend = view.findViewById<Button>(R.id.btnTranslateSend)
-        btnLangToggle.setOnClickListener {
-            playClickFeedback(btnLangToggle)
-            isEsToEn = !isEsToEn
-            btnLangToggle.text = if (isEsToEn) "ES ➔ EN" else "EN ➔ ES"
-        }
-        btnTranslateSend.setOnClickListener { translateText(btnTranslateSend) }
 
         val btnClipboardEnter = view.findViewById<Button>(R.id.btnClipboardEnter)
         btnClipboardEnter?.setOnClickListener {
@@ -242,7 +232,10 @@ class MiTecladoAnclado : InputMethodService() {
                     override fun onRmsChanged(rmsdB: Float) {}
                     override fun onBufferReceived(buffer: ByteArray?) {}
                     override fun onEndOfSpeech() { btnMic1?.text = "⏳" }
-                    override fun onError(error: Int) { btnMic1?.text = "🎤" }
+                    override fun onError(error: Int) { 
+                        btnMic1?.text = "🎤"
+                        launchExternalVoiceRecognition() // Si falla interno, abre externo
+                    }
                     override fun onResults(results: Bundle?) {
                         btnMic1?.text = "🎤"
                         val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
@@ -480,7 +473,8 @@ class MiTecladoAnclado : InputMethodService() {
                 
                 if (tag == "SUGGESTION") continue
                 
-                val isActionKey = tag in listOf("MIC", "OPEN_TRANSLATOR", "CLIPBOARD", "MODE_LETTERS", "CLEAR_CLIPBOARD", "OPEN_QR_MODE", "CLOSE_QR_MODE", "CLEAR_QR_SEARCH", "OPEN_EMOJI", "MODE_SYM1", "MODE_SYM2", "MODE_NUMPAD", "CLOSE_TRANSLATOR", "IGNORE")
+                // AQUÍ LE DAMOS VIDA A LOS BOTONES REBELDES
+                val isActionKey = tag in listOf("MIC", "OPEN_TRANSLATOR", "CLIPBOARD", "MODE_LETTERS", "CLEAR_CLIPBOARD", "OPEN_QR_MODE", "CLOSE_QR_MODE", "CLEAR_QR_SEARCH", "OPEN_EMOJI", "MODE_SYM1", "MODE_SYM2", "MODE_NUMPAD", "CLOSE_TRANSLATOR", "LANG_TOGGLE", "TRANSLATE_SEND")
                 
                 if (isActionKey) {
                     child.setOnClickListener { handleKeyPress(child) }
@@ -614,6 +608,12 @@ class MiTecladoAnclado : InputMethodService() {
             "MODE_SYM1" -> switchLayout(layoutSymbols1)
             "MODE_SYM2" -> switchLayout(layoutSymbols2)
             "MODE_NUMPAD" -> switchLayout(layoutNumpad) 
+            "LANG_TOGGLE" -> {
+                playClickFeedback(button)
+                isEsToEn = !isEsToEn
+                button.text = if (isEsToEn) "ES ➔ EN" else "EN ➔ ES"
+            }
+            "TRANSLATE_SEND" -> translateText(button)
         }
     }
 
@@ -669,10 +669,10 @@ class MiTecladoAnclado : InputMethodService() {
         Toast.makeText(this, "Borrados", Toast.LENGTH_SHORT).show()
     }
 
+    // EL NUEVO LANZADOR AGRESIVO DEL MICRÓFONO
     private fun startVoiceRecognition() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             Toast.makeText(this, "Activa el micrófono en ajustes de la app", Toast.LENGTH_LONG).show()
-            return
         }
         
         if (speechRecognizer != null) {
@@ -686,17 +686,24 @@ class MiTecladoAnclado : InputMethodService() {
                     speechRecognizer?.startListening(intent)
                 } catch (e: Exception) {
                     btnMic1?.text = "🎤"
-                    Toast.makeText(this, "Error de Google Voice", Toast.LENGTH_SHORT).show()
+                    launchExternalVoiceRecognition()
                 }
             }
         } else {
-            try {
-                val intent = Intent(this, Class.forName("com.brayan.tecladoanclado.VoiceActivity"))
-                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                startActivity(intent)
-            } catch (e: Exception) {
-                Toast.makeText(this, "No se encontró motor de voz", Toast.LENGTH_SHORT).show()
+            launchExternalVoiceRecognition()
+        }
+    }
+
+    private fun launchExternalVoiceRecognition() {
+        try {
+            val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                putExtra(RecognizerIntent.EXTRA_LANGUAGE, "es-HN")
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
+            startActivity(intent)
+        } catch (e: Exception) {
+            Toast.makeText(this, "No se pudo abrir el dictado. Instala la app de Google.", Toast.LENGTH_SHORT).show()
         }
     }
 
