@@ -73,13 +73,15 @@ class MiTecladoAnclado : InputMethodService() {
     private lateinit var layoutSymbols2: View
     private lateinit var layoutNumpad: View
     private lateinit var layoutClipboard: View
-    private lateinit var layoutEmojis: View // NUEVO CONTENEDOR EMOJIS
+    private lateinit var layoutEmojis: View 
 
     private var btnMic1: Button? = null
     private lateinit var btnLangToggle: Button
     private lateinit var btnTranslateSend: Button
 
-    private val deleteHandler = Handler(Looper.getMainLooper())
+    // Optimizador Gboard: Un solo Handler principal
+    private val mainHandler = Handler(Looper.getMainLooper())
+
     private val deleteRunnable = object : Runnable {
         override fun run() {
             playClickFeedback()
@@ -94,12 +96,12 @@ class MiTecladoAnclado : InputMethodService() {
                 currentInputConnection?.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DEL))
                 currentInputConnection?.sendKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_DEL))
             }
-            deleteHandler.postDelayed(this, 50) 
+            mainHandler.postDelayed(this, 50) 
         }
     }
 
     private val clipListener = ClipboardManager.OnPrimaryClipChangedListener { 
-        Handler(Looper.getMainLooper()).postDelayed({ checkSystemClipboard() }, 150)
+        mainHandler.postDelayed({ checkSystemClipboard() }, 150)
     }
 
     override fun onCreate() {
@@ -124,7 +126,7 @@ class MiTecladoAnclado : InputMethodService() {
         layoutSymbols2 = view.findViewById(R.id.layout_symbols_2)
         layoutNumpad = view.findViewById(R.id.layout_numpad)
         layoutClipboard = view.findViewById(R.id.layout_clipboard)
-        layoutEmojis = view.findViewById(R.id.layout_emojis) // INICIANDO EMOJIS
+        layoutEmojis = view.findViewById(R.id.layout_emojis) 
 
         btnMic1 = view.findViewById(R.id.btnMic1)
         btnLangToggle = view.findViewById(R.id.btnLangToggle)
@@ -140,7 +142,6 @@ class MiTecladoAnclado : InputMethodService() {
             currentInputConnection?.sendKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_ENTER))
         }
 
-        // Configuración Portapapeles
         val rvClipboard = view.findViewById<RecyclerView>(R.id.keyboard_recycler_view)
         adapter = PinnedAdapter(DataManager.loadItems(this), 
             onItemClick = { text -> currentInputConnection?.commitText(text, 1) },
@@ -149,7 +150,6 @@ class MiTecladoAnclado : InputMethodService() {
         rvClipboard.layoutManager = GridLayoutManager(this, 3) 
         rvClipboard.adapter = adapter
 
-        // Configuración Respuestas Rápidas
         allQrItems = DataManager.loadQuickReplies(this)
         qrAdapter = QuickReplyKeyboardAdapter(allQrItems) { selectedItem ->
             playClickFeedback()
@@ -159,11 +159,10 @@ class MiTecladoAnclado : InputMethodService() {
         rvQuickRepliesKeyboard.layoutManager = LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
         rvQuickRepliesKeyboard.adapter = qrAdapter
 
-        // NUEVO: CONFIGURACIÓN EMOJIS MASIVOS
         val rvEmojis = view.findViewById<RecyclerView>(R.id.rv_emojis_keyboard)
         val emojiList = "😀,😃,😄,😁,😆,😅,😂,🤣,🥲,☺️,😊,😇,🙂,🙃,😉,😌,😍,🥰,😘,😗,😙,😚,😋,😛,😝,😜,🤪,🤨,🧐,🤓,😎,🥸,🤩,🥳,😏,😒,😞,😔,😟,😕,🙁,☹️,😣,😖,😫,😩,🥺,😢,😭,😤,😠,😡,🤬,🤯,😳,🥵,🥶,😱,😨,😰,😥,😓,🫣,🤭,🫢,🫡,🤔,🤫,🤥,😶,😐,😑,😬,🙄,😯,😦,😧,😮,😲,🥱,😴,🤤,😪,😮‍💨,😵,😵‍💫,🤐,🥴,🤢,🤮,🤧,😷,🤒,🤕,🤑,🤠,😈,👿,👹,👺,🤡,💩,👻,💀,👽,👾,🤖,🎃,🫶,🤲,👐,🙌,👏,🤝,👍,👎,👊,✊,🤛,🤜,🤞,✌️,🫰,🤟,🤘,👌,🤌,🤏,🫳,🫴,👈,👉,👆,👇,☝️,✋,🤚,🖐,🖖,👋,🤙,💪,🦾,🖕,✍️,🙏,🦶,🦵,🦿,💄,💋,👄,🦷,👅,👂,🦻,👃,👣,👁,👀,🫀,🫁,🧠,🗣,👤,👥,🫂,❤️,🧡,💛,💚,💙,💜,🖤,🤍,🤎,💔,❣️,💕,💞,💓,💗,💖,💘,💝,❤️‍🔥,❤️‍🩹,📦,🚚,🛵,🚗,🚕,🚙,🚌,🚓,🚑,🚒,🛒,🛍️,🎁,🏷️,💲,💵,💴,💶,💷,🪙,💰,💳,🧾,✅,❌,⚠️,📌,📍,📲,📱,💻,🖥️,🖨️,📸,🎥,💥,🔥,✨,🌟,💫,⭐,🔥,💯,💢,💬,👁️‍🗨️,🗯️,💭,💤".split(",")
         
-        rvEmojis.layoutManager = GridLayoutManager(this, 8) // 8 emojis por fila
+        rvEmojis.layoutManager = GridLayoutManager(this, 8) 
         rvEmojis.adapter = EmojiAdapter(emojiList) { emoji ->
             playClickFeedback()
             currentInputConnection?.commitText(emoji, 1)
@@ -285,7 +284,7 @@ class MiTecladoAnclado : InputMethodService() {
                             val response = conn.inputStream.bufferedReader().readText()
                             val jsonArray = JSONArray(response)
                             val translatedText = jsonArray.getJSONArray(0).getJSONArray(0).getString(0)
-                            Handler(Looper.getMainLooper()).post {
+                            mainHandler.post {
                                 ic.deleteSurroundingText(textToTranslate.length, 0)
                                 ic.commitText(translatedText, 1)
                                 btnTranslateSend.text = "✨ Traducir texto"
@@ -293,7 +292,7 @@ class MiTecladoAnclado : InputMethodService() {
                             }
                         } else throw Exception()
                     } catch (e: Exception) {
-                        Handler(Looper.getMainLooper()).post {
+                        mainHandler.post {
                             Toast.makeText(this@MiTecladoAnclado, "Error de internet", Toast.LENGTH_SHORT).show()
                             btnTranslateSend.text = "✨ Traducir texto"
                             btnTranslateSend.isEnabled = true
@@ -341,7 +340,8 @@ class MiTecladoAnclado : InputMethodService() {
                     }
                 } else if (tag == null && child.text.length == 1) {
                     val letter = child.text.toString()
-                    if (letter.matches(Regex("[a-zA-ZñÑ]"))) {
+                    // Optimización: Elimina Regex pesados para cambiar mayúsculas al instante
+                    if (letter[0].isLetter() || letter == "ñ" || letter == "Ñ" || letter == "á" || letter == "é" || letter == "í" || letter == "ó" || letter == "ú") {
                         child.text = if (isUpper) letter.uppercase() else letter.lowercase()
                     }
                 }
@@ -349,6 +349,7 @@ class MiTecladoAnclado : InputMethodService() {
         }
     }
 
+    // EL NUEVO CEREBRO DE LATENCIA CERO (MODO GBOARD)
     private fun setKeyListeners(parent: ViewGroup) {
         for (i in 0 until parent.childCount) {
             val child = parent.getChildAt(i)
@@ -357,45 +358,89 @@ class MiTecladoAnclado : InputMethodService() {
                 val tag = child.tag as? String
                 
                 if (tag == "IGNORE") continue
-                
-                child.setOnLongClickListener {
-                    if (isQrMode) return@setOnLongClickListener false
-                    val text = child.text.toString().lowercase()
-                    val accentedChar = when(text) {
-                        "a" -> "á"; "e" -> "é"; "i" -> "í"; "o" -> "ó"; "u" -> "ú"; "n" -> "ñ"; "!" -> "¡"; "?" -> "¿"; else -> null
-                    }
-                    if (accentedChar != null) {
-                        playClickFeedback()
-                        currentInputConnection?.commitText(if (shiftState > 0) accentedChar.uppercase() else accentedChar, 1)
-                        if (shiftState == 1) setShiftState(0) 
-                        true 
-                    } else false 
-                }
 
+                // Lógica extrema para velocidad de retroceso
                 if (tag == "DELETE") {
-                    child.setOnTouchListener { _, event ->
+                    child.setOnTouchListener { v, event ->
                         when (event.action) {
                             MotionEvent.ACTION_DOWN -> {
+                                v.isPressed = true
+                                // Actuación instantánea en la bajada
                                 playClickFeedback()
                                 if (isQrMode) {
                                     if (qrSearchQuery.isNotEmpty()) {
                                         qrSearchQuery = qrSearchQuery.dropLast(1)
                                         updateQrSearchUI()
-                                    } else {
-                                        closeQrMode()
-                                    }
+                                    } else closeQrMode()
                                 } else {
                                     currentInputConnection?.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DEL))
                                     currentInputConnection?.sendKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_DEL))
                                 }
-                                deleteHandler.postDelayed(deleteRunnable, 400) 
+                                mainHandler.postDelayed(deleteRunnable, 400) 
                             }
-                            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> deleteHandler.removeCallbacks(deleteRunnable)
+                            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                                v.isPressed = false
+                                mainHandler.removeCallbacks(deleteRunnable)
+                            }
                         }
                         true
                     }
-                } else {
-                    child.setOnClickListener { handleKeyPress(child) }
+                    continue
+                }
+
+                // Lógica "Switches Mecánicos" para todas las demás teclas
+                var isLongPress = false
+                var longPressRunnable: Runnable? = null
+
+                child.setOnTouchListener { v, event ->
+                    when (event.action) {
+                        MotionEvent.ACTION_DOWN -> {
+                            isLongPress = false
+                            v.isPressed = true
+                            
+                            // Feedback físico y auditivo INSTANTÁNEO
+                            if (tag == "ENTER") playEnterSound() else playClickFeedback()
+
+                            // Verifica si la tecla tiene tilde
+                            val text = child.text.toString().lowercase()
+                            val accentedChar = when(text) {
+                                "a" -> "á"; "e" -> "é"; "i" -> "í"; "o" -> "ó"; "u" -> "ú"
+                                "n" -> "ñ"; "!" -> "¡"; "?" -> "¿"; else -> null
+                            }
+
+                            if (accentedChar != null) {
+                                longPressRunnable = Runnable {
+                                    isLongPress = true
+                                    v.isPressed = false
+                                    // Pequeña vibración extra al sacar la tilde
+                                    if (vibrationEnabled) {
+                                        try {
+                                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) vibrator.vibrate(VibrationEffect.createOneShot(20, VibrationEffect.DEFAULT_AMPLITUDE))
+                                            else @Suppress("DEPRECATION") vibrator.vibrate(20)
+                                        } catch (e: Exception) {}
+                                    }
+                                    val textToInsert = if (shiftState > 0) accentedChar.uppercase() else accentedChar
+                                    currentInputConnection?.commitText(textToInsert, 1)
+                                    if (shiftState == 1) setShiftState(0)
+                                }
+                                mainHandler.postDelayed(longPressRunnable!!, 350)
+                            }
+                        }
+                        MotionEvent.ACTION_UP -> {
+                            v.isPressed = false
+                            longPressRunnable?.let { mainHandler.removeCallbacks(it) }
+                            
+                            // Ejecuta la tecla en la subida solo si NO fue una pulsación larga
+                            if (!isLongPress) {
+                                handleKeyPress(child)
+                            }
+                        }
+                        MotionEvent.ACTION_CANCEL -> {
+                            v.isPressed = false
+                            longPressRunnable?.let { mainHandler.removeCallbacks(it) }
+                        }
+                    }
+                    true
                 }
             }
         }
@@ -403,7 +448,6 @@ class MiTecladoAnclado : InputMethodService() {
 
     private fun handleKeyPress(button: Button) {
         val tag = button.tag as? String
-        if (tag != "ENTER") playClickFeedback() 
         val textToInsert = button.text.toString()
 
         if (isQrMode) {
@@ -425,7 +469,6 @@ class MiTecladoAnclado : InputMethodService() {
 
         when (tag) {
             "ENTER" -> {
-                playEnterSound()
                 ic.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_ENTER))
                 ic.sendKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_ENTER))
             }
@@ -441,8 +484,6 @@ class MiTecladoAnclado : InputMethodService() {
             "OPEN_TRANSLATOR" -> { layoutTopBar.visibility = View.GONE; layoutTranslatorBar.visibility = View.VISIBLE }
             "CLOSE_TRANSLATOR" -> { layoutTranslatorBar.visibility = View.GONE; layoutTopBar.visibility = View.VISIBLE }
             "OPEN_QR_MODE" -> openQrMode()
-            
-            // ABRIR EMOJIS
             "OPEN_EMOJI" -> switchLayout(layoutEmojis)
             
             "CLIPBOARD" -> { checkSystemClipboard(); switchLayout(layoutClipboard) }
@@ -464,7 +505,7 @@ class MiTecladoAnclado : InputMethodService() {
         layoutSymbols2.visibility = View.GONE
         layoutNumpad.visibility = View.GONE
         layoutClipboard.visibility = View.GONE
-        layoutEmojis.visibility = View.GONE // Asegura apagar emojis
+        layoutEmojis.visibility = View.GONE 
         activeLayout.visibility = View.VISIBLE
     }
 
@@ -486,7 +527,7 @@ class MiTecladoAnclado : InputMethodService() {
         } catch (e: Exception) {}
         
         if (::adapter.isInitialized) {
-            Handler(Looper.getMainLooper()).post { adapter.updateData(DataManager.loadItems(this)) }
+            mainHandler.post { adapter.updateData(DataManager.loadItems(this)) }
         }
     }
 
@@ -550,8 +591,7 @@ class MiTecladoAnclado : InputMethodService() {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE, "es-HN")
         }
         try {
-            updateMicStatus("🔴")
-            speechRecognizer.startListening(intent)
+            updateMicStatus("🔴"); speechRecognizer.startListening(intent)
         } catch (e: Exception) { updateMicStatus("🎤") }
     }
 
@@ -561,7 +601,6 @@ class MiTecladoAnclado : InputMethodService() {
         if (::speechRecognizer.isInitialized) speechRecognizer.destroy()
     }
 
-    // --- NUEVO ADAPTADOR PARA EMOJIS (Motor de reciclaje infinito) ---
     inner class EmojiAdapter(private val emojiList: List<String>, private val onEmojiClick: (String) -> Unit) : RecyclerView.Adapter<EmojiAdapter.EmojiViewHolder>() {
         inner class EmojiViewHolder(val textView: TextView) : RecyclerView.ViewHolder(textView)
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): EmojiViewHolder {
@@ -579,7 +618,6 @@ class MiTecladoAnclado : InputMethodService() {
         override fun getItemCount() = emojiList.size
     }
 
-    // Adaptador de Respuestas Rápidas
     inner class QuickReplyKeyboardAdapter(private var items: List<QuickReplyItem>, private val onClick: (QuickReplyItem) -> Unit) : RecyclerView.Adapter<QuickReplyKeyboardAdapter.QRViewHolder>() {
         fun updateData(newItems: List<QuickReplyItem>) {
             this.items = newItems
