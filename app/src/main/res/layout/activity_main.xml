@@ -120,6 +120,14 @@
         android:padding="8dp">
         
         <Switch 
+            android:id="@+id/switchAutocorrect" 
+            android:layout_width="match_parent" 
+            android:layout_height="wrap_content" 
+            android:text="✍️ Autocorrector y Sugerencias" 
+            android:textColor="#FFFFFF" 
+            android:paddingBottom="4dp"/>
+
+        <Switch 
             android:id="@+id/switchSound" 
             android:layout_width="match_parent" 
             android:layout_height="wrap_content" 
