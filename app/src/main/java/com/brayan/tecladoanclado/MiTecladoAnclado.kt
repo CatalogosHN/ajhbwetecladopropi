@@ -14,6 +14,8 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.os.VibrationEffect
+import android.os.Vibrator
 import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
@@ -41,26 +43,33 @@ import kotlin.concurrent.thread
 class MiTecladoAnclado : InputMethodService() {
     private lateinit var adapter: PinnedAdapter
     private lateinit var clipboardManager: ClipboardManager
+    private var speechRecognizer: SpeechRecognizer? = null
     
+    // Motor Anti-Latencia
     private val backgroundExecutor = java.util.concurrent.Executors.newSingleThreadExecutor()
     private val mainHandler = Handler(Looper.getMainLooper())
     
+    // Motores de Hardware
     private lateinit var audioManager: AudioManager
+    private lateinit var vibrator: Vibrator
     private var soundEnabled = true
     private var soundEnterEnabled = true
     private var vibrationEnabled = false
     private var autocorrectEnabled = true
     
+    // Memoria y Estados
     private var learnedWords = mutableSetOf<String>()
     private var currentBestSuggestion = ""
     private var shiftState = 0
     private var lastShiftTime = 0L
     
+    // Respuestas Rápidas
     private var isQrMode = false
     private var qrSearchQuery = ""
     private var allQrItems = mutableListOf<QuickReplyItem>()
     private lateinit var qrAdapter: QuickReplyKeyboardAdapter
     
+    // Contenedores UI
     private lateinit var layoutTopBar: View
     private lateinit var layoutSuggestionsBar: View
     private lateinit var layoutTranslatorBar: View
@@ -108,6 +117,7 @@ class MiTecladoAnclado : InputMethodService() {
         clipboardManager = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
         clipboardManager.addPrimaryClipChangedListener(clipListener)
         audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        vibrator = getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
         
         learnedWords = DataManager.loadLearnedWords(this)
         
@@ -202,6 +212,7 @@ class MiTecladoAnclado : InputMethodService() {
             currentInputConnection?.commitText(emoji, 1)
         }
 
+        setupSpeechRecognizer()
         setKeyListeners(view as ViewGroup)
         return view
     }
@@ -221,7 +232,31 @@ class MiTecladoAnclado : InputMethodService() {
         layoutTopBar.visibility = View.VISIBLE
     }
 
-    // MAGIA: HAPTIC FEEDBACK DIRECTO AL HARDWARE (CERO LATENCIA)
+    private fun setupSpeechRecognizer() {
+        if (SpeechRecognizer.isRecognitionAvailable(this)) {
+            mainHandler.post {
+                speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this)
+                speechRecognizer?.setRecognitionListener(object : RecognitionListener {
+                    override fun onReadyForSpeech(params: Bundle?) { btnMic1?.text = "🔴" }
+                    override fun onBeginningOfSpeech() { btnMic1?.text = "🗣️" }
+                    override fun onRmsChanged(rmsdB: Float) {}
+                    override fun onBufferReceived(buffer: ByteArray?) {}
+                    override fun onEndOfSpeech() { btnMic1?.text = "⏳" }
+                    override fun onError(error: Int) { btnMic1?.text = "🎤" }
+                    override fun onResults(results: Bundle?) {
+                        btnMic1?.text = "🎤"
+                        val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+                        if (!matches.isNullOrEmpty()) {
+                            currentInputConnection?.commitText(matches[0] + " ", 1)
+                        }
+                    }
+                    override fun onPartialResults(partialResults: Bundle?) {}
+                    override fun onEvent(eventType: Int, params: Bundle?) {}
+                })
+            }
+        }
+    }
+
     private fun playClickFeedback(v: View?) {
         backgroundExecutor.execute {
             if (soundEnabled) audioManager.playSoundEffect(AudioManager.FX_KEYPRESS_STANDARD, 0.8f)
@@ -436,7 +471,6 @@ class MiTecladoAnclado : InputMethodService() {
         }
     }
 
-    // MAGIA GBOARD: ACTION_POINTER_DOWN LEE MÚLTIPLES DEDOS A LA VEZ
     private fun setKeyListeners(parent: ViewGroup) {
         for (i in 0 until parent.childCount) {
             val child = parent.getChildAt(i)
@@ -563,18 +597,7 @@ class MiTecladoAnclado : InputMethodService() {
                 mainHandler.postDelayed({ updateSuggestionsUI() }, 10)
             }
             "CLEAR_CLIPBOARD" -> clearUnpinned()
-            "MIC" -> {
-                try {
-                    val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-                        putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-                        putExtra(RecognizerIntent.EXTRA_LANGUAGE, "es-HN")
-                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                    }
-                    startActivity(intent)
-                } catch (e: Exception) {
-                    Toast.makeText(this, "Instala la app de Google", Toast.LENGTH_SHORT).show()
-                }
-            }
+            "MIC" -> startVoiceRecognition()
             "SHIFT" -> {
                 val now = System.currentTimeMillis()
                 if (now - lastShiftTime < 400) setShiftState(2) else setShiftState(if (shiftState == 0) 1 else 0)
@@ -646,9 +669,41 @@ class MiTecladoAnclado : InputMethodService() {
         Toast.makeText(this, "Borrados", Toast.LENGTH_SHORT).show()
     }
 
+    private fun startVoiceRecognition() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            Toast.makeText(this, "Activa el micrófono en ajustes de la app", Toast.LENGTH_LONG).show()
+            return
+        }
+        
+        if (speechRecognizer != null) {
+            mainHandler.post {
+                try {
+                    val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                        putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                        putExtra(RecognizerIntent.EXTRA_LANGUAGE, "es-HN")
+                    }
+                    btnMic1?.text = "🔴"
+                    speechRecognizer?.startListening(intent)
+                } catch (e: Exception) {
+                    btnMic1?.text = "🎤"
+                    Toast.makeText(this, "Error de Google Voice", Toast.LENGTH_SHORT).show()
+                }
+            }
+        } else {
+            try {
+                val intent = Intent(this, Class.forName("com.brayan.tecladoanclado.VoiceActivity"))
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                startActivity(intent)
+            } catch (e: Exception) {
+                Toast.makeText(this, "No se encontró motor de voz", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
     override fun onDestroy() {
         super.onDestroy()
         clipboardManager.removePrimaryClipChangedListener(clipListener) 
+        speechRecognizer?.destroy()
     }
 
     inner class EmojiAdapter(private val emojiList: List<String>, private val onEmojiClick: (String) -> Unit) : RecyclerView.Adapter<EmojiAdapter.EmojiViewHolder>() {
