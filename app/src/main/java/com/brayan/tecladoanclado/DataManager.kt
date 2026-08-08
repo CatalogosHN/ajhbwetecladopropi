@@ -6,7 +6,7 @@ import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 
 data class ClipboardItem(val text: String, var isPinned: Boolean = false)
-data class QuickReplyItem(var shortcut: String, var text: String) // NUEVA ESTRUCTURA
+data class QuickReplyItem(var shortcut: String, var text: String)
 
 object DataManager {
     private const val PREFS_NAME = "PinnedKeyboardPrefsV2"
@@ -15,6 +15,8 @@ object DataManager {
     private const val KEY_SOUND = "key_sound"
     private const val KEY_SOUND_ENTER = "key_sound_enter"
     private const val KEY_VIBE = "key_vibration"
+    private const val KEY_AUTOCORRECT = "key_autocorrect"
+    private const val KEY_LEARNED_WORDS = "key_learned_words"
 
     private fun getPrefs(context: Context): SharedPreferences {
         return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -22,8 +24,7 @@ object DataManager {
 
     // --- PORTAPAPELES ---
     fun saveItems(context: Context, items: List<ClipboardItem>) {
-        val json = Gson().toJson(items)
-        getPrefs(context).edit().putString(KEY_ITEMS, json).apply()
+        getPrefs(context).edit().putString(KEY_ITEMS, Gson().toJson(items)).apply()
     }
     fun loadItems(context: Context): MutableList<ClipboardItem> {
         val json = getPrefs(context).getString(KEY_ITEMS, null) ?: return mutableListOf()
@@ -33,13 +34,20 @@ object DataManager {
 
     // --- RESPUESTAS RÁPIDAS ---
     fun saveQuickReplies(context: Context, items: List<QuickReplyItem>) {
-        val json = Gson().toJson(items)
-        getPrefs(context).edit().putString(KEY_QUICK_REPLIES, json).apply()
+        getPrefs(context).edit().putString(KEY_QUICK_REPLIES, Gson().toJson(items)).apply()
     }
     fun loadQuickReplies(context: Context): MutableList<QuickReplyItem> {
         val json = getPrefs(context).getString(KEY_QUICK_REPLIES, null) ?: return mutableListOf()
         val type = object : TypeToken<MutableList<QuickReplyItem>>() {}.type
         return Gson().fromJson(json, type)
+    }
+
+    // --- DICCIONARIO PERSONAL ---
+    fun saveLearnedWords(context: Context, words: Set<String>) {
+        getPrefs(context).edit().putStringSet(KEY_LEARNED_WORDS, words).apply()
+    }
+    fun loadLearnedWords(context: Context): MutableSet<String> {
+        return getPrefs(context).getStringSet(KEY_LEARNED_WORDS, null)?.toMutableSet() ?: mutableSetOf()
     }
 
     // --- CONFIGURACIONES ---
@@ -51,4 +59,7 @@ object DataManager {
 
     fun isVibrationEnabled(context: Context): Boolean = getPrefs(context).getBoolean(KEY_VIBE, false)
     fun setVibrationEnabled(context: Context, enabled: Boolean) = getPrefs(context).edit().putBoolean(KEY_VIBE, enabled).apply()
+
+    fun isAutocorrectEnabled(context: Context): Boolean = getPrefs(context).getBoolean(KEY_AUTOCORRECT, true)
+    fun setAutocorrectEnabled(context: Context, enabled: Boolean) = getPrefs(context).edit().putBoolean(KEY_AUTOCORRECT, enabled).apply()
 }
