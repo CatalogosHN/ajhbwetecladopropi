@@ -245,32 +245,37 @@ class MiTecladoAnclado : InputMethodService() {
     }
 
     private fun playClickFeedback() {
-        if (soundEnabled) audioManager.playSoundEffect(AudioManager.FX_KEYPRESS_STANDARD, 0.8f)
-        if (vibrationEnabled) {
-            try {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) vibrator.vibrate(VibrationEffect.createOneShot(40, VibrationEffect.DEFAULT_AMPLITUDE))
-                else @Suppress("DEPRECATION") vibrator.vibrate(40)
-            } catch (e: Exception) {}
+        // Ejecuta el hardware en segundo plano para latencia CERO en la pantalla
+        backgroundExecutor.execute {
+            if (soundEnabled) audioManager.playSoundEffect(AudioManager.FX_KEYPRESS_STANDARD, 0.8f)
+            if (vibrationEnabled) {
+                try {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) vibrator.vibrate(VibrationEffect.createOneShot(40, VibrationEffect.DEFAULT_AMPLITUDE))
+                    else @Suppress("DEPRECATION") vibrator.vibrate(40)
+                } catch (e: Exception) {}
+            }
         }
     }
 
     private fun playEnterSound() {
-        if (soundEnterEnabled) {
-            try {
-                val mp = MediaPlayer.create(this, R.raw.sonido_enter)
-                mp.setOnCompletionListener { it.release() }
-                mp.start()
-            } catch (e: Exception) {
-                if (soundEnabled) audioManager.playSoundEffect(AudioManager.FX_KEYPRESS_RETURN, 0.8f)
+        backgroundExecutor.execute {
+            if (soundEnterEnabled) {
+                try {
+                    val mp = MediaPlayer.create(this, R.raw.sonido_enter)
+                    mp.setOnCompletionListener { it.release() }
+                    mp.start()
+                } catch (e: Exception) {
+                    if (soundEnabled) audioManager.playSoundEffect(AudioManager.FX_KEYPRESS_RETURN, 0.8f)
+                }
+            } else if (soundEnabled) {
+                audioManager.playSoundEffect(AudioManager.FX_KEYPRESS_RETURN, 0.8f)
             }
-        } else if (soundEnabled) {
-            audioManager.playSoundEffect(AudioManager.FX_KEYPRESS_RETURN, 0.8f)
-        }
-        if (vibrationEnabled) {
-            try {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) vibrator.vibrate(VibrationEffect.createOneShot(50, VibrationEffect.DEFAULT_AMPLITUDE))
-                else @Suppress("DEPRECATION") vibrator.vibrate(50)
-            } catch (e: Exception) {}
+            if (vibrationEnabled) {
+                try {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) vibrator.vibrate(VibrationEffect.createOneShot(50, VibrationEffect.DEFAULT_AMPLITUDE))
+                    else @Suppress("DEPRECATION") vibrator.vibrate(50)
+                } catch (e: Exception) {}
+            }
         }
     }
 
