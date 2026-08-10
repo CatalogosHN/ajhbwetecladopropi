@@ -87,6 +87,22 @@ class MainActivity : AppCompatActivity() {
         switchVibration.setOnCheckedChangeListener { _, isChecked -> DataManager.setVibrationEnabled(this, isChecked) }
 
         switchAutocorrect.setOnCheckedChangeListener { _, isChecked -> DataManager.setAutocorrectEnabled(this, isChecked) }
+
+        // --- CONFIGURAR TECLA GATILLO ---
+        val etQrTrigger = findViewById<android.widget.EditText>(R.id.etQrTrigger)
+        val btnSaveTrigger = findViewById<android.widget.Button>(R.id.btnSaveTrigger)
+        
+        etQrTrigger.setText(DataManager.getQrTrigger(this))
+
+        btnSaveTrigger.setOnClickListener {
+            val newTrigger = etQrTrigger.text.toString()
+            if (newTrigger.isNotEmpty()) {
+                DataManager.setQrTrigger(this, newTrigger)
+                android.widget.Toast.makeText(this, "Tecla actualizada a: $newTrigger", android.widget.Toast.LENGTH_SHORT).show()
+            } else {
+                android.widget.Toast.makeText(this, "La tecla no puede estar vacía", android.widget.Toast.LENGTH_SHORT).show()
+            }
+        }
         
         // Inicializar Adaptadores
         clipAdapter = PinnedAdapter(clipItems, onItemClick = {}, onItemLongClick = { _, _ -> })
