@@ -151,6 +151,44 @@
             android:textColor="#FFFFFF" />
     </LinearLayout>
 
+    <!-- CONFIGURACIÓN DE TECLA RÁPIDA -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginTop="16dp"
+        android:background="#1E1E1E"
+        android:padding="12dp">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Tecla de Respuestas Rápidas:"
+            android:textColor="#FFFFFF"
+            android:textSize="15sp"
+            android:gravity="center_vertical"/>
+
+        <EditText
+            android:id="@+id/etQrTrigger"
+            android:layout_width="50dp"
+            android:layout_height="wrap_content"
+            android:maxLength="1"
+            android:textColor="#FFFFFF"
+            android:textStyle="bold"
+            android:textAlignment="center"
+            android:backgroundTint="#4285F4"
+            android:text="["/>
+
+        <Button
+            android:id="@+id/btnSaveTrigger"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Guardar"
+            android:backgroundTint="#2196F3"
+            android:textColor="#FFFFFF"/>
+    </LinearLayout>
+
     <!-- Botones Importar / Exportar (¡Rescatados!) -->
     <LinearLayout
         android:layout_width="match_parent"
