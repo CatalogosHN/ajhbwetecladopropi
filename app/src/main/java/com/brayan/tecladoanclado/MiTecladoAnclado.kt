@@ -45,11 +45,9 @@ class MiTecladoAnclado : InputMethodService() {
     private lateinit var clipboardManager: ClipboardManager
     private var speechRecognizer: SpeechRecognizer? = null
     
-    // Motor Anti-Latencia
     private val backgroundExecutor = java.util.concurrent.Executors.newSingleThreadExecutor()
     private val mainHandler = Handler(Looper.getMainLooper())
     
-    // Motores de Hardware
     private lateinit var audioManager: AudioManager
     private lateinit var vibrator: Vibrator
     private var soundEnabled = true
@@ -57,21 +55,22 @@ class MiTecladoAnclado : InputMethodService() {
     private var vibrationEnabled = false
     private var autocorrectEnabled = true
     
-    // Memoria, Autocorrector y Estados
     private var learnedWords = mutableSetOf<String>()
     private var currentBestSuggestion = ""
     private var shiftState = 0
     private var lastShiftTime = 0L
     
-    // Respuestas Rápidas (MODO INLINE WHATSAPP)
+    private var isQrMode = false
+    private var qrSearchQuery = ""
     private var allQrItems = mutableListOf<QuickReplyItem>()
     private lateinit var qrAdapter: QuickReplyKeyboardAdapter
     private var qrTriggerChar = "["
     
-    // Contenedores UI
     private lateinit var layoutTopBar: View
     private lateinit var layoutSuggestionsBar: View
     private lateinit var layoutTranslatorBar: View
+    private lateinit var layoutQrSearchBar: View
+    private lateinit var tvQrSearch: TextView
     private lateinit var rvQuickRepliesKeyboard: RecyclerView
     
     private lateinit var btnSuggest1: Button
@@ -91,12 +90,19 @@ class MiTecladoAnclado : InputMethodService() {
 
     private val deleteRunnable = object : Runnable {
         override fun run() {
-            currentInputConnection?.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DEL))
-            currentInputConnection?.sendKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_DEL))
-            mainHandler.postDelayed({ 
-                updateSuggestionsUI() 
-                checkQuickReplyTrigger()
-            }, 10)
+            if (isQrMode) {
+                if (qrSearchQuery.isNotEmpty()) {
+                    qrSearchQuery = qrSearchQuery.dropLast(1)
+                    updateQrSearchUI()
+                } else closeQrMode()
+            } else {
+                currentInputConnection?.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DEL))
+                currentInputConnection?.sendKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_DEL))
+                mainHandler.postDelayed({ 
+                    updateSuggestionsUI() 
+                    checkQuickReplyTrigger()
+                }, 10)
+            }
             mainHandler.postDelayed(this, 50) 
         }
     }
@@ -114,16 +120,31 @@ class MiTecladoAnclado : InputMethodService() {
         
         learnedWords = DataManager.loadLearnedWords(this)
         
-        // CARGA EL SÚPER DICCIONARIO DE GITHUB
+        // --- MOTOR GBOARD: DESCARGA AUTOMÁTICA DEL DICCIONARIO SUPREMO ---
         backgroundExecutor.execute {
-            try {
-                val identifier = resources.getIdentifier("diccionario", "raw", packageName)
-                if (identifier != 0) {
-                    val inputStream = resources.openRawResource(identifier)
-                    val dictWords = inputStream.bufferedReader().readLines().map { it.trim().lowercase() }.filter { it.isNotBlank() }
-                    learnedWords.addAll(dictWords)
+            if (learnedWords.size < 5000) {
+                mainHandler.post { Toast.makeText(this@MiTecladoAnclado, "Descargando Diccionario (80k palabras)...", Toast.LENGTH_SHORT).show() }
+                try {
+                    val urlStr = "https://raw.githubusercontent.com/javierarce/palabras/master/listado-general.txt"
+                    val conn = URL(urlStr).openConnection() as HttpURLConnection
+                    conn.requestMethod = "GET"
+                    conn.connectTimeout = 10000
+                    
+                    if (conn.responseCode == 200) {
+                        val words = conn.inputStream.bufferedReader(Charsets.UTF_8).readLines()
+                            .map { it.trim().lowercase() }
+                            .filter { it.length > 2 }
+                            
+                        learnedWords.addAll(words)
+                        DataManager.saveLearnedWords(this@MiTecladoAnclado, learnedWords)
+                        mainHandler.post { Toast.makeText(this@MiTecladoAnclado, "¡Diccionario Español Instalado!", Toast.LENGTH_LONG).show() }
+                    }
+                } catch (e: Exception) {
+                    // Si no hay internet, carga las básicas de emergencia
+                    val baseWords = listOf("qué", "cómo", "cuándo", "dónde", "quién", "método", "envío", "garantía", "cámara", "teléfono", "también", "está", "días", "gracias", "artículo", "domicilio", "transferencia", "depósito", "número", "página", "tecnología", "promoción", "atención", "inmediata", "catálogo", "hola", "buenas", "tardes", "noches", "lempiras", "éxito", "rápido", "fácil", "útil", "increíble", "excelente", "ubicación", "dirección", "código", "guía", "recibo", "comprobante", "crédito", "débito", "artículos", "electrónica", "audífonos", "batería", "cargador", "imágenes", "vídeo", "música", "tamaño", "volumen", "computación")
+                    learnedWords.addAll(baseWords)
                 }
-            } catch (e: Exception) {}
+            }
         }
     }
 
@@ -134,6 +155,8 @@ class MiTecladoAnclado : InputMethodService() {
         layoutSuggestionsBar = view.findViewById(R.id.layout_suggestions_bar)
         layoutTranslatorBar = view.findViewById(R.id.layout_translator_bar)
         rvQuickRepliesKeyboard = view.findViewById(R.id.rv_quick_replies_keyboard)
+        layoutQrSearchBar = view.findViewById(R.id.layout_qr_search_bar)
+        tvQrSearch = view.findViewById(R.id.tvQrSearch)
         
         btnSuggest1 = view.findViewById(R.id.btnSuggest1)
         btnSuggest2 = view.findViewById(R.id.btnSuggest2)
@@ -159,6 +182,7 @@ class MiTecladoAnclado : InputMethodService() {
 
         btnMic1 = view.findViewById(R.id.btnMic1)
         btnQrTrigger = view.findViewById(R.id.btnQrTrigger)
+        btnLangToggle = view.findViewById(R.id.btnLangToggle)
 
         val btnClipboardEnter = view.findViewById<Button>(R.id.btnClipboardEnter)
         btnClipboardEnter?.setOnClickListener {
@@ -175,7 +199,6 @@ class MiTecladoAnclado : InputMethodService() {
         rvClipboard.layoutManager = GridLayoutManager(this, 3) 
         rvClipboard.adapter = adapter
 
-        // ADAPTADOR RESPUESTAS RÁPIDAS MODO WHATSAPP
         allQrItems = DataManager.loadQuickReplies(this)
         qrAdapter = QuickReplyKeyboardAdapter(allQrItems) { selectedItem ->
             playClickFeedback(null)
@@ -183,7 +206,6 @@ class MiTecladoAnclado : InputMethodService() {
             val textBefore = ic.getTextBeforeCursor(50, 0)?.toString() ?: ""
             val lastTriggerIndex = textBefore.lastIndexOf(qrTriggerChar)
             if (lastTriggerIndex != -1) {
-                // Borra el [gatillo y la palabra incompleta
                 val charsToDelete = textBefore.length - lastTriggerIndex
                 ic.deleteSurroundingText(charsToDelete, 0)
             }
@@ -214,8 +236,8 @@ class MiTecladoAnclado : InputMethodService() {
         autocorrectEnabled = DataManager.isAutocorrectEnabled(this)
         allQrItems = DataManager.loadQuickReplies(this)
         qrTriggerChar = DataManager.getQrTrigger(this)
-        btnQrTrigger?.text = qrTriggerChar
         
+        btnQrTrigger?.text = qrTriggerChar
         rvQuickRepliesKeyboard.visibility = View.GONE
         checkSystemClipboard()
         updateAutoCaps(info)
@@ -223,7 +245,6 @@ class MiTecladoAnclado : InputMethodService() {
         layoutTopBar.visibility = View.VISIBLE
     }
 
-    // --- MAGIA MODO INLINE WHATSAPP (Lee mientras escribes) ---
     private fun checkQuickReplyTrigger() {
         val ic = currentInputConnection ?: return
         val textBefore = ic.getTextBeforeCursor(50, 0)?.toString() ?: ""
@@ -232,10 +253,8 @@ class MiTecladoAnclado : InputMethodService() {
         if (lastTriggerIndex != -1) {
             val query = textBefore.substring(lastTriggerIndex + qrTriggerChar.length)
             
-            // Si el query no tiene espacios, estamos buscando una respuesta rápida
             if (!query.contains(" ")) {
                 val strictQuery = query.lowercase()
-                // BÚSQUEDA ESTRICTA: Solo si el atajo o texto CONTIENEN exactamente lo escrito
                 val filteredList = allQrItems.filter {
                     it.shortcut.lowercase().contains(strictQuery) || it.text.lowercase().contains(strictQuery)
                 }
@@ -247,7 +266,6 @@ class MiTecladoAnclado : InputMethodService() {
                 }
             }
         }
-        // Si no hay coincidencias o pusimos un espacio, ocultar la lista
         rvQuickRepliesKeyboard.visibility = View.GONE
     }
 
@@ -307,7 +325,7 @@ class MiTecladoAnclado : InputMethodService() {
         }
     }
 
-    // --- ALGORITMO LEVENSHTEIN SÚPER RÁPIDO PARA AUTOCORRECTOR REAL ---
+    // --- ALGORITMO LEVENSHTEIN (Detecta errores tipográficos como "ola" -> "hola") ---
     private fun levenshtein(a: String, b: String): Int {
         var v0 = IntArray(b.length + 1) { it }
         var v1 = IntArray(b.length + 1)
@@ -336,16 +354,17 @@ class MiTecladoAnclado : InputMethodService() {
             val lowerWord = currentWord.lowercase()
             val cleanLower = removeAccents(lowerWord)
 
-            // 1. Busca coincidencias exactas o por prefijo (computacion -> computación)
+            // 1. Coincidencias por prefijo (computacion -> computación)
             var matches = learnedWords.asSequence()
                 .filter { removeAccents(it).startsWith(cleanLower) && it != lowerWord }
                 .take(2).toList()
 
-            // 2. Si no hay, aplica Levenshtein para errores tipográficos (ola -> hola)
+            // 2. Coincidencias por error tipográfico (ola -> hola)
             if (matches.isEmpty() && currentWord.length >= 3) {
                 matches = learnedWords.asSequence()
-                    .filter { Math.abs(it.length - cleanLower.length) <= 1 } // Filtro rápido por longitud
-                    .filter { levenshtein(cleanLower, removeAccents(it)) <= 1 } // Filtro pesado
+                    .filter { it.startsWith(cleanLower[0]) || it.startsWith('h') } // Filtro extremo de velocidad
+                    .filter { Math.abs(it.length - cleanLower.length) <= 1 }
+                    .filter { levenshtein(cleanLower, removeAccents(it)) <= 1 }
                     .take(2).toList()
             }
 
@@ -395,6 +414,49 @@ class MiTecladoAnclado : InputMethodService() {
         return str.replace("á", "a").replace("é", "e").replace("í", "i").replace("ó", "o").replace("ú", "u")
     }
 
+    private fun openQrMode() {
+        isQrMode = true
+        qrSearchQuery = ""
+        layoutTopBar.visibility = View.GONE
+        layoutTranslatorBar.visibility = View.GONE
+        layoutSuggestionsBar.visibility = View.GONE
+        layoutQrSearchBar.visibility = View.VISIBLE
+        rvQuickRepliesKeyboard.visibility = View.VISIBLE
+        switchLayout(layoutLetters)
+        updateQrSearchUI()
+    }
+
+    private fun closeQrMode() {
+        isQrMode = false
+        layoutQrSearchBar.visibility = View.GONE
+        rvQuickRepliesKeyboard.visibility = View.GONE
+        layoutTopBar.visibility = View.VISIBLE
+    }
+
+    private fun updateQrSearchUI() {
+        tvQrSearch.text = "🔍 Buscar: $qrSearchQuery"
+        val filteredList = if (qrSearchQuery.isBlank()) {
+            allQrItems
+        } else {
+            allQrItems.filter { isFuzzyMatch(qrSearchQuery, it.shortcut) || isFuzzyMatch(qrSearchQuery, it.text) }
+        }
+        qrAdapter.updateData(filteredList)
+    }
+
+    private fun isFuzzyMatch(query: String, target: String): Boolean {
+        if (query.isEmpty()) return true
+        var qIndex = 0
+        val lowerTarget = target.lowercase()
+        val lowerQuery = query.lowercase()
+        for (char in lowerTarget) {
+            if (char == lowerQuery[qIndex]) {
+                qIndex++
+                if (qIndex == lowerQuery.length) return true
+            }
+        }
+        return false
+    }
+
     private fun translateText(btnSend: Button) {
         playClickFeedback(btnSend)
         val ic = currentInputConnection ?: return
@@ -440,7 +502,7 @@ class MiTecladoAnclado : InputMethodService() {
     override fun onUpdateSelection(oldSelStart: Int, oldSelEnd: Int, newSelStart: Int, newSelEnd: Int, candidatesStart: Int, candidatesEnd: Int) {
         super.onUpdateSelection(oldSelStart, oldSelEnd, newSelStart, newSelEnd, candidatesStart, candidatesEnd)
         updateAutoCaps(currentInputEditorInfo)
-        checkQuickReplyTrigger() // Chequea respuestas rápidas si mueves el cursor
+        checkQuickReplyTrigger() 
     }
 
     private fun updateAutoCaps(info: EditorInfo?) {
@@ -484,7 +546,7 @@ class MiTecladoAnclado : InputMethodService() {
                 
                 if (tag == "SUGGESTION") continue
                 
-                val isActionKey = tag in listOf("MIC", "OPEN_TRANSLATOR", "CLIPBOARD", "MODE_LETTERS", "CLEAR_CLIPBOARD", "OPEN_EMOJI", "MODE_SYM1", "MODE_SYM2", "MODE_NUMPAD", "CLOSE_TRANSLATOR", "LANG_TOGGLE", "TRANSLATE_SEND", "TYPE_TRIGGER")
+                val isActionKey = tag in listOf("MIC", "OPEN_TRANSLATOR", "CLIPBOARD", "MODE_LETTERS", "CLEAR_CLIPBOARD", "OPEN_QR_MODE", "CLOSE_QR_MODE", "CLEAR_QR_SEARCH", "OPEN_EMOJI", "MODE_SYM1", "MODE_SYM2", "MODE_NUMPAD", "CLOSE_TRANSLATOR", "LANG_TOGGLE", "TRANSLATE_SEND", "TYPE_TRIGGER")
                 
                 if (isActionKey) {
                     child.setOnClickListener { handleKeyPress(child) }
@@ -496,12 +558,19 @@ class MiTecladoAnclado : InputMethodService() {
                         when (event.actionMasked) {
                             MotionEvent.ACTION_DOWN, MotionEvent.ACTION_POINTER_DOWN -> {
                                 playClickFeedback(v)
-                                currentInputConnection?.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DEL))
-                                currentInputConnection?.sendKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_DEL))
-                                mainHandler.postDelayed({ 
-                                    updateSuggestionsUI()
-                                    checkQuickReplyTrigger()
-                                }, 10)
+                                if (isQrMode) {
+                                    if (qrSearchQuery.isNotEmpty()) {
+                                        qrSearchQuery = qrSearchQuery.dropLast(1)
+                                        updateQrSearchUI()
+                                    } else closeQrMode()
+                                } else {
+                                    currentInputConnection?.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DEL))
+                                    currentInputConnection?.sendKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_DEL))
+                                    mainHandler.postDelayed({ 
+                                        updateSuggestionsUI()
+                                        checkQuickReplyTrigger()
+                                    }, 10)
+                                }
                                 mainHandler.postDelayed(deleteRunnable, 400) 
                             }
                             MotionEvent.ACTION_UP, MotionEvent.ACTION_POINTER_UP, MotionEvent.ACTION_CANCEL -> {
@@ -524,12 +593,17 @@ class MiTecladoAnclado : InputMethodService() {
 
                             if (tag == null || tag.matches(Regex("\\d"))) {
                                 val textToInsert = child.text.toString()
-                                currentInputConnection?.commitText(textToInsert, 1)
-                                if (shiftState == 1) setShiftState(0)
-                                mainHandler.postDelayed({ 
-                                    updateSuggestionsUI()
-                                    checkQuickReplyTrigger()
-                                }, 10)
+                                if (isQrMode) {
+                                    qrSearchQuery += textToInsert.lowercase()
+                                    updateQrSearchUI()
+                                } else {
+                                    currentInputConnection?.commitText(textToInsert, 1)
+                                    if (shiftState == 1) setShiftState(0)
+                                    mainHandler.postDelayed({ 
+                                        updateSuggestionsUI()
+                                        checkQuickReplyTrigger()
+                                    }, 10)
+                                }
                             } else if (tag == "SPACE" || tag == "ENTER" || tag == "SHIFT") {
                                 handleKeyPress(child)
                             }
@@ -542,12 +616,17 @@ class MiTecladoAnclado : InputMethodService() {
                                     isLongPress = true
                                     if (vibrationEnabled) v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP, HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING)
                                     
-                                    currentInputConnection?.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DEL))
-                                    currentInputConnection?.sendKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_DEL))
-                                    
-                                    val textToInsert = if (shiftState > 0) accentedChar.uppercase() else accentedChar
-                                    currentInputConnection?.commitText(textToInsert, 1)
-                                    mainHandler.postDelayed({ updateSuggestionsUI() }, 10)
+                                    if (!isQrMode) {
+                                        currentInputConnection?.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DEL))
+                                        currentInputConnection?.sendKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_DEL))
+                                        
+                                        val textToInsert = if (shiftState > 0) accentedChar.uppercase() else accentedChar
+                                        currentInputConnection?.commitText(textToInsert, 1)
+                                        mainHandler.postDelayed({ 
+                                            updateSuggestionsUI()
+                                            checkQuickReplyTrigger()
+                                        }, 10)
+                                    }
                                 }
                                 mainHandler.postDelayed(longPressRunnable!!, 350)
                             }
@@ -564,6 +643,13 @@ class MiTecladoAnclado : InputMethodService() {
 
     private fun handleKeyPress(button: Button) {
         val tag = button.tag as? String
+        
+        if (isQrMode && tag == "SPACE") {
+            qrSearchQuery += " "
+            updateQrSearchUI()
+            return
+        }
+
         val ic = currentInputConnection ?: return
 
         when (tag) {
@@ -602,6 +688,9 @@ class MiTecladoAnclado : InputMethodService() {
             }
             "OPEN_TRANSLATOR" -> { layoutTopBar.visibility = View.GONE; layoutSuggestionsBar.visibility = View.GONE; layoutTranslatorBar.visibility = View.VISIBLE }
             "CLOSE_TRANSLATOR" -> { layoutTranslatorBar.visibility = View.GONE; layoutTopBar.visibility = View.VISIBLE }
+            "OPEN_QR_MODE" -> openQrMode()
+            "CLOSE_QR_MODE" -> closeQrMode()
+            "CLEAR_QR_SEARCH" -> { qrSearchQuery = ""; updateQrSearchUI() }
             "OPEN_EMOJI" -> switchLayout(layoutEmojis)
             "CLIPBOARD" -> { checkSystemClipboard(); switchLayout(layoutClipboard) }
             "MODE_LETTERS" -> switchLayout(layoutLetters)
