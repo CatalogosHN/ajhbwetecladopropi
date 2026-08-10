@@ -234,7 +234,7 @@ class MiTecladoAnclado : InputMethodService() {
                     override fun onEndOfSpeech() { btnMic1?.text = "⏳" }
                     override fun onError(error: Int) { 
                         btnMic1?.text = "🎤"
-                        launchExternalVoiceRecognition() // Si falla interno, abre externo
+                        launchExternalVoiceRecognition()
                     }
                     override fun onResults(results: Bundle?) {
                         btnMic1?.text = "🎤"
@@ -473,7 +473,6 @@ class MiTecladoAnclado : InputMethodService() {
                 
                 if (tag == "SUGGESTION") continue
                 
-                // AQUÍ LE DAMOS VIDA A LOS BOTONES REBELDES
                 val isActionKey = tag in listOf("MIC", "OPEN_TRANSLATOR", "CLIPBOARD", "MODE_LETTERS", "CLEAR_CLIPBOARD", "OPEN_QR_MODE", "CLOSE_QR_MODE", "CLEAR_QR_SEARCH", "OPEN_EMOJI", "MODE_SYM1", "MODE_SYM2", "MODE_NUMPAD", "CLOSE_TRANSLATOR", "LANG_TOGGLE", "TRANSLATE_SEND")
                 
                 if (isActionKey) {
@@ -531,10 +530,9 @@ class MiTecladoAnclado : InputMethodService() {
                             }
 
                             val text = child.text.toString().lowercase()
-                            val numTag = tag
                             val accentedChar = when(text) { "a"->"á"; "e"->"é"; "i"->"í"; "o"->"ó"; "u"->"ú"; "n"->"ñ"; else -> null }
                             
-                            if (accentedChar != null || (numTag != null && numTag.matches(Regex("\\d")))) {
+                            if (accentedChar != null) {
                                 longPressRunnable = Runnable {
                                     isLongPress = true
                                     if (vibrationEnabled) v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP, HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING)
@@ -543,7 +541,7 @@ class MiTecladoAnclado : InputMethodService() {
                                         currentInputConnection?.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DEL))
                                         currentInputConnection?.sendKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_DEL))
                                         
-                                        val textToInsert = if (numTag != null && numTag.matches(Regex("\\d"))) numTag else if (shiftState > 0) accentedChar?.uppercase() else accentedChar
+                                        val textToInsert = if (shiftState > 0) accentedChar.uppercase() else accentedChar
                                         currentInputConnection?.commitText(textToInsert, 1)
                                         mainHandler.postDelayed({ updateSuggestionsUI() }, 10)
                                     }
@@ -669,7 +667,6 @@ class MiTecladoAnclado : InputMethodService() {
         Toast.makeText(this, "Borrados", Toast.LENGTH_SHORT).show()
     }
 
-    // EL NUEVO LANZADOR AGRESIVO DEL MICRÓFONO
     private fun startVoiceRecognition() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             Toast.makeText(this, "Activa el micrófono en ajustes de la app", Toast.LENGTH_LONG).show()
