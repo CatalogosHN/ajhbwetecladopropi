@@ -17,12 +17,12 @@ object DataManager {
     private const val KEY_VIBE = "key_vibration"
     private const val KEY_AUTOCORRECT = "key_autocorrect"
     private const val KEY_LEARNED_WORDS = "key_learned_words"
+    private const val KEY_QR_TRIGGER = "key_qr_trigger" // NUEVO
 
     private fun getPrefs(context: Context): SharedPreferences {
         return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     }
 
-    // --- PORTAPAPELES ---
     fun saveItems(context: Context, items: List<ClipboardItem>) {
         getPrefs(context).edit().putString(KEY_ITEMS, Gson().toJson(items)).apply()
     }
@@ -32,7 +32,6 @@ object DataManager {
         return Gson().fromJson(json, type)
     }
 
-    // --- RESPUESTAS RÁPIDAS ---
     fun saveQuickReplies(context: Context, items: List<QuickReplyItem>) {
         getPrefs(context).edit().putString(KEY_QUICK_REPLIES, Gson().toJson(items)).apply()
     }
@@ -42,7 +41,6 @@ object DataManager {
         return Gson().fromJson(json, type)
     }
 
-    // --- DICCIONARIO PERSONAL ---
     fun saveLearnedWords(context: Context, words: Set<String>) {
         getPrefs(context).edit().putStringSet(KEY_LEARNED_WORDS, words).apply()
     }
@@ -50,7 +48,6 @@ object DataManager {
         return getPrefs(context).getStringSet(KEY_LEARNED_WORDS, null)?.toMutableSet() ?: mutableSetOf()
     }
 
-    // --- CONFIGURACIONES ---
     fun isSoundEnabled(context: Context): Boolean = getPrefs(context).getBoolean(KEY_SOUND, true)
     fun setSoundEnabled(context: Context, enabled: Boolean) = getPrefs(context).edit().putBoolean(KEY_SOUND, enabled).apply()
 
@@ -62,4 +59,8 @@ object DataManager {
 
     fun isAutocorrectEnabled(context: Context): Boolean = getPrefs(context).getBoolean(KEY_AUTOCORRECT, true)
     fun setAutocorrectEnabled(context: Context, enabled: Boolean) = getPrefs(context).edit().putBoolean(KEY_AUTOCORRECT, enabled).apply()
+
+    // --- NUEVO: TECLA GATILLO PARA RESPUESTAS RÁPIDAS ---
+    fun getQrTrigger(context: Context): String = getPrefs(context).getString(KEY_QR_TRIGGER, "[") ?: "["
+    fun setQrTrigger(context: Context, trigger: String) = getPrefs(context).edit().putString(KEY_QR_TRIGGER, trigger).apply()
 }
