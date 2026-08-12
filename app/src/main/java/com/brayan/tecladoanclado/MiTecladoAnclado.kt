@@ -15,6 +15,9 @@ import android.os.Handler
 import android.os.Looper
 import android.os.VibrationEffect
 import android.os.Vibrator
+import android.speech.RecognitionListener
+import android.speech.RecognizerIntent
+import android.speech.SpeechRecognizer
 import android.view.HapticFeedbackConstants
 import android.view.KeyEvent
 import android.view.MotionEvent
@@ -26,6 +29,7 @@ import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
+import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -38,6 +42,7 @@ import kotlin.concurrent.thread
 class MiTecladoAnclado : InputMethodService() {
     private lateinit var adapter: PinnedAdapter
     private lateinit var clipboardManager: ClipboardManager
+    private var speechRecognizer: SpeechRecognizer? = null
     
     private val backgroundExecutor = java.util.concurrent.Executors.newSingleThreadExecutor()
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -58,7 +63,7 @@ class MiTecladoAnclado : InputMethodService() {
     private lateinit var qrAdapter: QuickReplyKeyboardAdapter
     private var qrTriggerChar = "["
     
-    // --- NUEVO: BÚSQUEDA DE EMOJIS ---
+    // --- BÚSQUEDA DE EMOJIS ---
     private var isEmojiSearchMode = false
     private var emojiSearchQuery = ""
     private lateinit var layoutEmojiSearchBar: View
@@ -101,35 +106,45 @@ class MiTecladoAnclado : InputMethodService() {
         emojisSymbols.split(",")
     }
 
-    // MINI-DICCIONARIO DE EMOJIS PARA EL BUSCADOR
+    // --- EL DICCIONARIO SUPREMO DE EMOJIS AMPLIADO ---
     private val emojiDictionary = mapOf(
         "feliz" to listOf("😀","😃","😄","😁","😊","☺️","🥰","🥳"),
         "triste" to listOf("😢","😭","😞","😔","☹️","💔"),
+        "tristeza" to listOf("😢","😭","😞","😔","☹️","💔"),
+        "llorar" to listOf("😭","😢","😿","💧","💦"),
+        "sonreir" to listOf("😀","😃","😄","😁","😊","🙂"),
+        "sonrisa" to listOf("😀","😃","😄","😁","😊","🙂"),
         "amor" to listOf("❤️","😍","🥰","😘","💕","💘","💝"),
+        "corazon" to listOf("❤️","🧡","💛","💚","💙","💜","🖤","🤍","🤎","💔","❣️","💕","💞","💓","💗","💖","💘","💝"),
+        "beso" to listOf("😘","😗","😙","😚","💋"),
         "risa" to listOf("😂","🤣","😹","😆"),
+        "reir" to listOf("😂","🤣","😹","😆"),
+        "jaja" to listOf("😂","🤣","😆"),
+        "enojado" to listOf("😠","😡","🤬","😤","😾"),
+        "enojo" to listOf("😠","😡","🤬","😤","😾"),
         "sorpresa" to listOf("😱","😲","😳","😮","🤯"),
-        "enojado" to listOf("😠","😡","🤬","😤"),
-        "animal" to emojisAnimals.split(",").take(15),
-        "comida" to emojisFood.split(",").take(15),
+        "susto" to listOf("😱","😨","😰","😧","😦"),
+        "miedo" to listOf("😱","😨","😰","😧","😦"),
+        "bien" to listOf("👍","👌","✅","✔️"),
+        "mal" to listOf("👎","❌","🚫","🙅‍♂️"),
+        "ok" to listOf("👍","👌","✅","✔️","🆗"),
+        "hola" to listOf("👋","🙋‍♂️","🙋‍♀️"),
+        "adios" to listOf("👋","🏃‍♂️","🏃‍♀️"),
+        "animal" to emojisAnimals.split(",").take(20),
+        "comida" to emojisFood.split(",").take(20),
         "carro" to listOf("🚗","🚕","🚙","🚌","🏎"),
-        "deporte" to emojisSports.split(",").take(10),
+        "deporte" to emojisSports.split(",").take(15),
         "fuego" to listOf("🔥","💥","☄️"),
         "dinero" to listOf("💸","💵","💰","💳"),
-        "ok" to listOf("👍","👌","✅","✔️"),
-        "no" to listOf("👎","❌","🚫","🙅‍♂️")
+        "sol" to listOf("☀️","🌞","🌅"),
+        "luna" to listOf("🌙","🌚","🌛","🌜"),
+        "estrella" to listOf("⭐","🌟","✨"),
+        "flor" to listOf("🌹","🌺","🌻","🌼","🌸","🌷"),
+        "musica" to listOf("🎵","🎶","🎸","🎹","🎺","🎻")
     )
 
     private lateinit var rvEmojis: RecyclerView
     private var emojiAdapter: EmojiAdapter? = null
-
-    private val voiceReceiver = object : android.content.BroadcastReceiver() {
-        override fun onReceive(context: Context?, intent: Intent?) {
-            val text = intent?.getStringExtra("text")
-            if (!text.isNullOrEmpty()) {
-                currentInputConnection?.commitText("$text ", 1)
-            }
-        }
-    }
 
     private val deleteRunnable = object : Runnable {
         override fun run() {
@@ -178,14 +193,6 @@ class MiTecladoAnclado : InputMethodService() {
                 }
             }
         }
-
-        val filter = android.content.IntentFilter("com.brayan.tecladoanclado.VOICE_TEXT")
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(voiceReceiver, filter, Context.RECEIVER_EXPORTED)
-        } else {
-            @Suppress("UnspecifiedRegisterReceiverFlag")
-            registerReceiver(voiceReceiver, filter)
-        }
     }
 
     override fun onCreateInputView(): View {
@@ -195,7 +202,6 @@ class MiTecladoAnclado : InputMethodService() {
         layoutSuggestionsBar = view.findViewById(R.id.layout_suggestions_bar)
         layoutTranslatorBar = view.findViewById(R.id.layout_translator_bar)
         
-        // Elementos del buscador de emojis
         layoutEmojiSearchBar = view.findViewById(R.id.layout_emoji_search_bar)
         tvEmojiSearch = view.findViewById(R.id.tvEmojiSearch)
         rvEmojiSearchResults = view.findViewById(R.id.rv_emoji_search_results)
@@ -270,23 +276,21 @@ class MiTecladoAnclado : InputMethodService() {
         rvQuickRepliesKeyboard.layoutManager = LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
         rvQuickRepliesKeyboard.adapter = qrAdapter
 
-        // --- SISTEMA DEFINITIVO DE EMOJIS CON SCROLL INFINITO ---
         rvEmojis = view.findViewById(R.id.rv_emojis_keyboard)
         rvEmojis.layoutManager = GridLayoutManager(this, 8) 
         emojiAdapter = EmojiAdapter(emptyList()) { emoji ->
             playClickFeedback(null)
             currentInputConnection?.commitText(emoji, 1)
-            DataManager.addRecentEmoji(this, emoji) // Auto-guarda en recientes
+            DataManager.addRecentEmoji(this, emoji) 
         }
         rvEmojis.adapter = emojiAdapter
 
-        // --- ADAPTADOR DEL BUSCADOR DE EMOJIS ---
         rvEmojiSearchResults.layoutManager = LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
         searchEmojiAdapter = EmojiAdapter(emptyList()) { emoji ->
             playClickFeedback(null)
             currentInputConnection?.commitText(emoji, 1)
             DataManager.addRecentEmoji(this, emoji)
-            closeEmojiSearchMode() // Cierra al elegir
+            closeEmojiSearchMode()
         }
         rvEmojiSearchResults.adapter = searchEmojiAdapter
 
@@ -315,7 +319,6 @@ class MiTecladoAnclado : InputMethodService() {
         layoutTopBar.visibility = View.VISIBLE
     }
 
-    // --- MAGIA DEL BUSCADOR DE EMOJIS ---
     private fun openEmojiSearchMode() {
         isEmojiSearchMode = true
         emojiSearchQuery = ""
@@ -324,7 +327,7 @@ class MiTecladoAnclado : InputMethodService() {
         layoutTranslatorBar.visibility = View.GONE
         layoutEmojiSearchBar.visibility = View.VISIBLE
         rvEmojiSearchResults.visibility = View.VISIBLE
-        switchLayout(layoutLetters) // Vuelve a las letras para escribir
+        switchLayout(layoutLetters) 
         updateEmojiSearchUI()
     }
 
@@ -333,7 +336,7 @@ class MiTecladoAnclado : InputMethodService() {
         layoutEmojiSearchBar.visibility = View.GONE
         rvEmojiSearchResults.visibility = View.GONE
         layoutTopBar.visibility = View.VISIBLE
-        switchLayout(layoutEmojis) // Regresa al menú de emojis
+        switchLayout(layoutEmojis) 
     }
 
     private fun updateEmojiSearchUI() {
@@ -345,7 +348,6 @@ class MiTecladoAnclado : InputMethodService() {
             val query = emojiSearchQuery.lowercase()
             val results = mutableListOf<String>()
             
-            // Busca en el mini-diccionario
             for ((key, emojis) in emojiDictionary) {
                 if (key.contains(query)) {
                     results.addAll(emojis)
@@ -353,7 +355,6 @@ class MiTecladoAnclado : InputMethodService() {
             }
             
             if (results.isEmpty()) {
-                // Muestra caritas si no encuentra nada
                 searchEmojiAdapter?.updateData(emojisSmileys.split(",").take(15))
             } else {
                 searchEmojiAdapter?.updateData(results.distinct())
@@ -361,7 +362,6 @@ class MiTecladoAnclado : InputMethodService() {
         }
     }
 
-    // --- EL CEREBRO DE LAS CATEGORÍAS TIPO WHATSAPP ---
     private fun loadEmojiCategory(category: String, button: Button?) {
         if (button != null) playClickFeedback(button)
         val tvCategory = layoutEmojis.findViewById<TextView>(R.id.tvEmojiCategory)
@@ -376,7 +376,6 @@ class MiTecladoAnclado : InputMethodService() {
                 emojiAdapter?.updateData(recents)
             }
         } else {
-            // Carga la lista completa para hacer scroll infinito
             emojiAdapter?.updateData(masterEmojiList)
             
             var offset = 0
@@ -389,13 +388,12 @@ class MiTecladoAnclado : InputMethodService() {
                 "OBJECTS" -> { tvCategory.text = "Objetos"; offset = emojisSmileys.split(",").size + emojisAnimals.split(",").size + emojisFood.split(",").size + emojisSports.split(",").size + emojisTravel.split(",").size }
                 "SYMBOLS" -> { tvCategory.text = "Símbolos"; offset = emojisSmileys.split(",").size + emojisAnimals.split(",").size + emojisFood.split(",").size + emojisSports.split(",").size + emojisTravel.split(",").size + emojisObjects.split(",").size }
             }
-            // Navega rápido a la sección correcta como hace WhatsApp
             (rvEmojis.layoutManager as LinearLayoutManager).scrollToPositionWithOffset(offset, 0)
         }
     }
 
     private fun checkQuickReplyTrigger() {
-        if (isEmojiSearchMode) return // Evita cruces
+        if (isEmojiSearchMode) return 
         val ic = currentInputConnection ?: return
         val textBefore = ic.getTextBeforeCursor(50, 0)?.toString() ?: ""
         
@@ -417,14 +415,54 @@ class MiTecladoAnclado : InputMethodService() {
         rvQuickRepliesKeyboard.visibility = View.GONE
     }
 
+    // --- DICTADO DE VOZ PURO (RESTAURADO) ---
     private fun startVoiceRecognition() {
-        playClickFeedback(btnMic1)
-        try {
-            val intent = Intent(this, Class.forName("com.brayan.tecladoanclado.VoiceActivity"))
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            startActivity(intent)
-        } catch (e: Exception) {
-            Toast.makeText(this, "Falla al iniciar micrófono", Toast.LENGTH_SHORT).show()
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            Toast.makeText(this, "⚠️ Otorga permiso de micrófono en Ajustes de Android", Toast.LENGTH_LONG).show()
+            return
+        }
+        
+        mainHandler.post {
+            try {
+                speechRecognizer?.destroy()
+                
+                // Intento primario puro: Perfecto en Samsung, no te saca de la app.
+                speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this)
+                
+                speechRecognizer?.setRecognitionListener(object : RecognitionListener {
+                    override fun onReadyForSpeech(params: Bundle?) { btnMic1?.text = "🔴" }
+                    override fun onBeginningOfSpeech() { btnMic1?.text = "🗣️" }
+                    override fun onRmsChanged(rmsdB: Float) {}
+                    override fun onBufferReceived(buffer: ByteArray?) {}
+                    override fun onEndOfSpeech() { btnMic1?.text = "⏳" }
+                    override fun onError(error: Int) { 
+                        btnMic1?.text = "🎤"
+                        // En errores, solo silenciamos para no molestar.
+                    }
+                    override fun onResults(results: Bundle?) {
+                        btnMic1?.text = "🎤"
+                        val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+                        if (!matches.isNullOrEmpty()) {
+                            currentInputConnection?.commitText(matches[0] + " ", 1)
+                        }
+                    }
+                    override fun onPartialResults(partialResults: Bundle?) {}
+                    override fun onEvent(eventType: Int, params: Bundle?) {}
+                })
+
+                val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                    putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                    putExtra(RecognizerIntent.EXTRA_LANGUAGE, "es-HN")
+                    // Este atributo ayuda a Vivo a entender que el teclado es el dueño
+                    putExtra(RecognizerIntent.EXTRA_CALLING_PACKAGE, packageName)
+                }
+                
+                speechRecognizer?.startListening(intent)
+
+            } catch (e: Exception) {
+                btnMic1?.text = "🎤"
+                Toast.makeText(this, "Error al cargar micrófono", Toast.LENGTH_SHORT).show()
+            }
         }
     }
 
@@ -692,7 +730,6 @@ class MiTecladoAnclado : InputMethodService() {
                             isLongPress = false
                             playClickFeedback(v)
 
-                            // --- INTERCEPTA LAS LETRAS SI ESTAMOS BUSCANDO EMOJIS ---
                             if (isEmojiSearchMode) {
                                 if (tag == null || tag.matches(Regex("\\d"))) {
                                     emojiSearchQuery += child.text.toString().lowercase()
@@ -880,7 +917,7 @@ class MiTecladoAnclado : InputMethodService() {
     override fun onDestroy() {
         super.onDestroy()
         clipboardManager.removePrimaryClipChangedListener(clipListener) 
-        try { unregisterReceiver(voiceReceiver) } catch (e: Exception) {}
+        speechRecognizer?.destroy()
     }
 
     inner class EmojiAdapter(private var emojiList: List<String>, private val onEmojiClick: (String) -> Unit) : RecyclerView.Adapter<EmojiAdapter.EmojiViewHolder>() {
