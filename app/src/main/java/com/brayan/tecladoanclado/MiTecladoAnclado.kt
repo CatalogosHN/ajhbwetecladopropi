@@ -13,6 +13,8 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.os.VibrationEffect
+import android.os.Vibrator
 import android.view.HapticFeedbackConstants
 import android.view.KeyEvent
 import android.view.MotionEvent
@@ -41,6 +43,7 @@ class MiTecladoAnclado : InputMethodService() {
     private val mainHandler = Handler(Looper.getMainLooper())
     
     private lateinit var audioManager: AudioManager
+    private lateinit var vibrator: Vibrator // <-- ¡AQUÍ ESTÁ EL ARREGLO!
     private var soundEnabled = true
     private var soundEnterEnabled = true
     private var vibrationEnabled = false
@@ -449,6 +452,7 @@ class MiTecladoAnclado : InputMethodService() {
         return str.replace("á", "a").replace("é", "e").replace("í", "i").replace("ó", "o").replace("ú", "u")
     }
 
+    // AQUÍ DEVOLVEMOS LA FUNCIÓN PERDIDA DE TRADUCIR
     private fun translateText(btnSend: Button) {
         playClickFeedback(btnSend)
         val ic = currentInputConnection ?: return
