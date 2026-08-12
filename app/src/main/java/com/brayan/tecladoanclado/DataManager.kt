@@ -72,9 +72,9 @@ object DataManager {
     }
     fun addRecentEmoji(context: Context, emoji: String) {
         val recents = loadRecentEmojis(context)
-        recents.remove(emoji) // Si ya existe, lo borra para ponerlo al principio
+        recents.remove(emoji) 
         recents.add(0, emoji)
-        if (recents.size > 40) recents.removeAt(recents.size - 1) // Máximo 40 recientes
+        if (recents.size > 40) recents.removeAt(recents.size - 1) 
         getPrefs(context).edit().putString(KEY_RECENT_EMOJIS, Gson().toJson(recents)).apply()
     }
 }
