@@ -2,6 +2,7 @@ package com.brayan.tecladoanclado
 
 import android.Manifest
 import android.content.ClipboardManager
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -224,7 +225,6 @@ class MiTecladoAnclado : InputMethodService() {
             currentInputConnection?.commitText(emoji, 1)
         }
 
-        setupSpeechRecognizer()
         setKeyListeners(view as ViewGroup)
         return view
     }
@@ -271,10 +271,30 @@ class MiTecladoAnclado : InputMethodService() {
         rvQuickRepliesKeyboard.visibility = View.GONE
     }
 
-    private fun setupSpeechRecognizer() {
-        if (SpeechRecognizer.isRecognitionAvailable(this)) {
-            mainHandler.post {
-                speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this)
+    // --- NUEVO MOTOR DE VOZ: DIRECTO, AGRESIVO Y A PRUEBA DE VIVO ---
+    private fun startVoiceRecognition() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            Toast.makeText(this, "Activa el permiso de micrófono en los ajustes", Toast.LENGTH_LONG).show()
+            return
+        }
+        
+        mainHandler.post {
+            try {
+                // 1. Destruimos cualquier instancia vieja que Vivo haya congelado
+                speechRecognizer?.destroy()
+                
+                // 2. Forzamos la conexión con el motor oficial de la app de Google
+                val googleComponent = ComponentName(
+                    "com.google.android.googlequicksearchbox", 
+                    "com.google.android.voicesearch.intentapi.GoogleRecognitionService"
+                )
+                
+                speechRecognizer = try {
+                    SpeechRecognizer.createSpeechRecognizer(this, googleComponent)
+                } catch (e: Exception) {
+                    SpeechRecognizer.createSpeechRecognizer(this)
+                }
+
                 speechRecognizer?.setRecognitionListener(object : RecognitionListener {
                     override fun onReadyForSpeech(params: Bundle?) { btnMic1?.text = "🔴" }
                     override fun onBeginningOfSpeech() { btnMic1?.text = "🗣️" }
@@ -283,7 +303,7 @@ class MiTecladoAnclado : InputMethodService() {
                     override fun onEndOfSpeech() { btnMic1?.text = "⏳" }
                     override fun onError(error: Int) { 
                         btnMic1?.text = "🎤"
-                        launchExternalVoiceRecognition()
+                        // Silencioso para evitar spam de errores del sistema
                     }
                     override fun onResults(results: Bundle?) {
                         btnMic1?.text = "🎤"
@@ -295,6 +315,19 @@ class MiTecladoAnclado : InputMethodService() {
                     override fun onPartialResults(partialResults: Bundle?) {}
                     override fun onEvent(eventType: Int, params: Bundle?) {}
                 })
+
+                val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                    putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                    putExtra(RecognizerIntent.EXTRA_LANGUAGE, "es-HN")
+                    putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
+                }
+                
+                speechRecognizer?.startListening(intent)
+                btnMic1?.text = "🔴"
+
+            } catch (e: Exception) {
+                btnMic1?.text = "🎤"
+                Toast.makeText(this, "Instala o Habilita la App de Google", Toast.LENGTH_LONG).show()
             }
         }
     }
@@ -554,10 +587,9 @@ class MiTecladoAnclado : InputMethodService() {
                             }
 
                             val text = child.text.toString().lowercase()
-                            val numTag = tag
                             val accentedChar = when(text) { "a"->"á"; "e"->"é"; "i"->"í"; "o"->"ó"; "u"->"ú"; "n"->"ñ"; else -> null }
                             
-                            if (accentedChar != null || (numTag != null && numTag.matches(Regex("\\d")))) {
+                            if (accentedChar != null) {
                                 longPressRunnable = Runnable {
                                     isLongPress = true
                                     if (vibrationEnabled) v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP, HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING)
@@ -565,7 +597,7 @@ class MiTecladoAnclado : InputMethodService() {
                                     currentInputConnection?.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DEL))
                                     currentInputConnection?.sendKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_DEL))
                                     
-                                    val textToInsert = if (numTag != null && numTag.matches(Regex("\\d"))) numTag else if (shiftState > 0) accentedChar?.uppercase() else accentedChar
+                                    val textToInsert = if (shiftState > 0) accentedChar.uppercase() else accentedChar
                                     currentInputConnection?.commitText(textToInsert, 1)
                                     mainHandler.postDelayed({ 
                                         updateSuggestionsUI()
@@ -690,43 +722,6 @@ class MiTecladoAnclado : InputMethodService() {
         DataManager.saveItems(this, pinnedOnly)
         adapter.updateData(pinnedOnly)
         Toast.makeText(this, "Borrados", Toast.LENGTH_SHORT).show()
-    }
-
-    private fun startVoiceRecognition() {
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
-            Toast.makeText(this, "Activa el micrófono en ajustes de la app", Toast.LENGTH_LONG).show()
-        }
-        
-        if (speechRecognizer != null) {
-            mainHandler.post {
-                try {
-                    val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-                        putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-                        putExtra(RecognizerIntent.EXTRA_LANGUAGE, "es-HN")
-                    }
-                    btnMic1?.text = "🔴"
-                    speechRecognizer?.startListening(intent)
-                } catch (e: Exception) {
-                    btnMic1?.text = "🎤"
-                    launchExternalVoiceRecognition()
-                }
-            }
-        } else {
-            launchExternalVoiceRecognition()
-        }
-    }
-
-    private fun launchExternalVoiceRecognition() {
-        try {
-            val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-                putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-                putExtra(RecognizerIntent.EXTRA_LANGUAGE, "es-HN")
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            }
-            startActivity(intent)
-        } catch (e: Exception) {
-            Toast.makeText(this, "No se pudo abrir el dictado. Instala la app de Google.", Toast.LENGTH_SHORT).show()
-        }
     }
 
     override fun onDestroy() {
