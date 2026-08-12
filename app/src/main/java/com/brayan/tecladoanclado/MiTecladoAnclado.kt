@@ -225,7 +225,7 @@ class MiTecladoAnclado : InputMethodService() {
             currentInputConnection?.commitText(emoji, 1)
         }
 
-        setupSpeechRecognizer()
+        // AQUÍ ELIMINÉ LA LÍNEA QUE CAUSABA EL ERROR DE COMPILACIÓN
         setKeyListeners(view as ViewGroup)
         return view
     }
@@ -291,6 +291,19 @@ class MiTecladoAnclado : InputMethodService() {
                     override fun onEndOfSpeech() { btnMic1?.text = "⏳" }
                     override fun onError(error: Int) { 
                         btnMic1?.text = "🎤"
+                        val errorMsg = when(error) {
+                            SpeechRecognizer.ERROR_AUDIO -> "Error de audio"
+                            SpeechRecognizer.ERROR_CLIENT -> "Google canceló la petición"
+                            SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> "Sin permisos de micrófono"
+                            SpeechRecognizer.ERROR_NETWORK -> "Falla de red"
+                            SpeechRecognizer.ERROR_NETWORK_TIMEOUT -> "Red lenta"
+                            SpeechRecognizer.ERROR_NO_MATCH -> "No te entendí"
+                            SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> "Micrófono ocupado"
+                            SpeechRecognizer.ERROR_SERVER -> "Error de Google"
+                            SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "No hablaste"
+                            else -> "Error: $error"
+                        }
+                        Toast.makeText(this@MiTecladoAnclado, errorMsg, Toast.LENGTH_SHORT).show()
                         speechRecognizer?.destroy()
                     }
                     override fun onResults(results: Bundle?) {
