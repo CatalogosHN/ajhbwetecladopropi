@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.graphics.Color
 import android.graphics.Typeface
 import android.inputmethodservice.InputMethodService
@@ -146,6 +147,15 @@ class MiTecladoAnclado : InputMethodService() {
     private lateinit var rvEmojis: RecyclerView
     private var emojiAdapter: EmojiAdapter? = null
 
+    private val voiceReceiver = object : android.content.BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            val text = intent?.getStringExtra("text")
+            if (!text.isNullOrEmpty()) {
+                currentInputConnection?.commitText("$text ", 1)
+            }
+        }
+    }
+
     private val deleteRunnable = object : Runnable {
         override fun run() {
             currentInputConnection?.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DEL))
@@ -192,6 +202,14 @@ class MiTecladoAnclado : InputMethodService() {
                     learnedWords.addAll(baseWords)
                 }
             }
+        }
+
+        val filter = android.content.IntentFilter("com.brayan.tecladoanclado.VOICE_TEXT")
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(voiceReceiver, filter, Context.RECEIVER_EXPORTED)
+        } else {
+            @Suppress("UnspecifiedRegisterReceiverFlag")
+            registerReceiver(voiceReceiver, filter)
         }
     }
 
@@ -426,7 +444,6 @@ class MiTecladoAnclado : InputMethodService() {
             try {
                 speechRecognizer?.destroy()
                 
-                // Intento primario puro: Perfecto en Samsung, no te saca de la app.
                 speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this)
                 
                 speechRecognizer?.setRecognitionListener(object : RecognitionListener {
@@ -437,7 +454,6 @@ class MiTecladoAnclado : InputMethodService() {
                     override fun onEndOfSpeech() { btnMic1?.text = "⏳" }
                     override fun onError(error: Int) { 
                         btnMic1?.text = "🎤"
-                        // En errores, solo silenciamos para no molestar.
                     }
                     override fun onResults(results: Bundle?) {
                         btnMic1?.text = "🎤"
@@ -917,7 +933,7 @@ class MiTecladoAnclado : InputMethodService() {
     override fun onDestroy() {
         super.onDestroy()
         clipboardManager.removePrimaryClipChangedListener(clipListener) 
-        speechRecognizer?.destroy()
+        try { unregisterReceiver(voiceReceiver) } catch (e: Exception) {}
     }
 
     inner class EmojiAdapter(private var emojiList: List<String>, private val onEmojiClick: (String) -> Unit) : RecyclerView.Adapter<EmojiAdapter.EmojiViewHolder>() {
