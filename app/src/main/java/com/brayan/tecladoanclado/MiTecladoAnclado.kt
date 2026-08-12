@@ -2,7 +2,6 @@ package com.brayan.tecladoanclado
 
 import android.Manifest
 import android.content.ClipboardManager
-import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -64,7 +63,7 @@ class MiTecladoAnclado : InputMethodService() {
     private var shiftState = 0
     private var lastShiftTime = 0L
     
-    // Respuestas Rápidas (MODO INLINE WHATSAPP)
+    // Respuestas Rápidas
     private var allQrItems = mutableListOf<QuickReplyItem>()
     private lateinit var qrAdapter: QuickReplyKeyboardAdapter
     private var qrTriggerChar = "["
@@ -88,7 +87,7 @@ class MiTecladoAnclado : InputMethodService() {
 
     private var btnMic1: Button? = null
     private var btnQrTrigger: Button? = null
-    private lateinit var btnLangToggle: Button
+    private var btnLangToggle: Button? = null
     private var isEsToEn = true
 
     private val deleteRunnable = object : Runnable {
@@ -116,24 +115,21 @@ class MiTecladoAnclado : InputMethodService() {
         
         learnedWords = DataManager.loadLearnedWords(this)
         
-        // MOTOR GBOARD: DESCARGA AUTOMÁTICA DEL DICCIONARIO SUPREMO
         backgroundExecutor.execute {
             if (learnedWords.size < 5000) {
-                mainHandler.post { Toast.makeText(this@MiTecladoAnclado, "Descargando Diccionario (80k palabras)...", Toast.LENGTH_SHORT).show() }
+                mainHandler.post { Toast.makeText(this@MiTecladoAnclado, "Descargando Diccionario (80k)...", Toast.LENGTH_SHORT).show() }
                 try {
                     val urlStr = "https://raw.githubusercontent.com/javierarce/palabras/master/listado-general.txt"
                     val conn = URL(urlStr).openConnection() as HttpURLConnection
                     conn.requestMethod = "GET"
                     conn.connectTimeout = 10000
-                    
                     if (conn.responseCode == 200) {
                         val words = conn.inputStream.bufferedReader(Charsets.UTF_8).readLines()
                             .map { it.trim().lowercase() }
                             .filter { it.length > 2 }
-                            
                         learnedWords.addAll(words)
                         DataManager.saveLearnedWords(this@MiTecladoAnclado, learnedWords)
-                        mainHandler.post { Toast.makeText(this@MiTecladoAnclado, "¡Diccionario Español Instalado!", Toast.LENGTH_LONG).show() }
+                        mainHandler.post { Toast.makeText(this@MiTecladoAnclado, "¡Diccionario Instalado!", Toast.LENGTH_LONG).show() }
                     }
                 } catch (e: Exception) {
                     val baseWords = listOf("qué", "cómo", "cuándo", "dónde", "quién", "método", "envío", "garantía", "cámara", "teléfono", "también", "está", "días", "gracias", "artículo", "domicilio", "transferencia", "depósito", "número", "página", "tecnología", "promoción", "atención", "inmediata", "catálogo", "hola", "buenas", "tardes", "noches", "lempiras", "éxito", "rápido", "fácil", "útil", "increíble", "excelente", "ubicación", "dirección", "código", "guía", "recibo", "comprobante", "crédito", "débito", "artículos", "electrónica", "audífonos", "batería", "cargador", "imágenes", "vídeo", "música", "tamaño", "volumen", "computación")
@@ -155,6 +151,7 @@ class MiTecladoAnclado : InputMethodService() {
         btnSuggest2 = view.findViewById(R.id.btnSuggest2)
         btnSuggest3 = view.findViewById(R.id.btnSuggest3)
         
+        // LAS SUGERENCIAS SON LAS ÚNICAS QUE QUEDAN CON CLIC NORMAL
         val suggestListener = View.OnClickListener {
             val text = (it as Button).text.toString()
             if (text.isNotBlank()) {
@@ -177,19 +174,14 @@ class MiTecladoAnclado : InputMethodService() {
         btnQrTrigger = view.findViewById(R.id.btnQrTrigger)
         btnLangToggle = view.findViewById(R.id.btnLangToggle)
 
-        val btnTranslateSend = view.findViewById<Button>(R.id.btnTranslateSend)
-        btnLangToggle.setOnClickListener {
-            playClickFeedback(btnLangToggle)
-            isEsToEn = !isEsToEn
-            btnLangToggle.text = if (isEsToEn) "ES ➔ EN" else "EN ➔ ES"
-        }
-        btnTranslateSend.setOnClickListener { translateText(btnTranslateSend) }
-
         val btnClipboardEnter = view.findViewById<Button>(R.id.btnClipboardEnter)
-        btnClipboardEnter?.setOnClickListener {
-            playEnterSound(btnClipboardEnter)
-            currentInputConnection?.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_ENTER))
-            currentInputConnection?.sendKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_ENTER))
+        btnClipboardEnter?.setOnTouchListener { v, event ->
+            if (event.actionMasked == MotionEvent.ACTION_DOWN) {
+                playEnterSound(btnClipboardEnter)
+                currentInputConnection?.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_ENTER))
+                currentInputConnection?.sendKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_ENTER))
+            }
+            true
         }
 
         val rvClipboard = view.findViewById<RecyclerView>(R.id.keyboard_recycler_view)
@@ -200,7 +192,6 @@ class MiTecladoAnclado : InputMethodService() {
         rvClipboard.layoutManager = GridLayoutManager(this, 3) 
         rvClipboard.adapter = adapter
 
-        // ADAPTADOR RESPUESTAS RÁPIDAS MODO WHATSAPP
         allQrItems = DataManager.loadQuickReplies(this)
         qrAdapter = QuickReplyKeyboardAdapter(allQrItems) { selectedItem ->
             playClickFeedback(null)
@@ -225,7 +216,6 @@ class MiTecladoAnclado : InputMethodService() {
             currentInputConnection?.commitText(emoji, 1)
         }
 
-        // AQUÍ ELIMINÉ LA LÍNEA QUE CAUSABA EL ERROR DE COMPILACIÓN
         setKeyListeners(view as ViewGroup)
         return view
     }
@@ -254,13 +244,11 @@ class MiTecladoAnclado : InputMethodService() {
         val lastTriggerIndex = textBefore.lastIndexOf(qrTriggerChar)
         if (lastTriggerIndex != -1) {
             val query = textBefore.substring(lastTriggerIndex + qrTriggerChar.length)
-            
             if (!query.contains(" ")) {
                 val strictQuery = query.lowercase()
                 val filteredList = allQrItems.filter {
                     it.shortcut.lowercase().contains(strictQuery) || it.text.lowercase().contains(strictQuery)
                 }
-                
                 if (filteredList.isNotEmpty()) {
                     qrAdapter.updateData(filteredList)
                     rvQuickRepliesKeyboard.visibility = View.VISIBLE
@@ -271,16 +259,21 @@ class MiTecladoAnclado : InputMethodService() {
         rvQuickRepliesKeyboard.visibility = View.GONE
     }
 
+    // --- NUEVO DICTADO: A PRUEBA DE FALLOS Y CERO LATENCIA ---
     private fun startVoiceRecognition() {
+        // 1. Verificación agresiva de permisos
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             Toast.makeText(this, "⚠️ Otorga permiso de micrófono en Ajustes", Toast.LENGTH_LONG).show()
+            val intent = Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+            intent.data = android.net.Uri.parse("package:$packageName")
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            startActivity(intent)
             return
         }
 
         mainHandler.post {
             try {
                 speechRecognizer?.destroy()
-                
                 speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this)
                 
                 speechRecognizer?.setRecognitionListener(object : RecognitionListener {
@@ -291,20 +284,8 @@ class MiTecladoAnclado : InputMethodService() {
                     override fun onEndOfSpeech() { btnMic1?.text = "⏳" }
                     override fun onError(error: Int) { 
                         btnMic1?.text = "🎤"
-                        val errorMsg = when(error) {
-                            SpeechRecognizer.ERROR_AUDIO -> "Error de audio"
-                            SpeechRecognizer.ERROR_CLIENT -> "Google canceló la petición"
-                            SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> "Sin permisos de micrófono"
-                            SpeechRecognizer.ERROR_NETWORK -> "Falla de red"
-                            SpeechRecognizer.ERROR_NETWORK_TIMEOUT -> "Red lenta"
-                            SpeechRecognizer.ERROR_NO_MATCH -> "No te entendí"
-                            SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> "Micrófono ocupado"
-                            SpeechRecognizer.ERROR_SERVER -> "Error de Google"
-                            SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "No hablaste"
-                            else -> "Error: $error"
-                        }
-                        Toast.makeText(this@MiTecladoAnclado, errorMsg, Toast.LENGTH_SHORT).show()
-                        speechRecognizer?.destroy()
+                        Toast.makeText(this@MiTecladoAnclado, "Redirigiendo a motor alterno...", Toast.LENGTH_SHORT).show()
+                        launchExternalVoiceRecognition()
                     }
                     override fun onResults(results: Bundle?) {
                         btnMic1?.text = "🎤"
@@ -321,15 +302,33 @@ class MiTecladoAnclado : InputMethodService() {
                 val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
                     putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
                     putExtra(RecognizerIntent.EXTRA_LANGUAGE, "es-HN")
-                    putExtra(RecognizerIntent.EXTRA_CALLING_PACKAGE, packageName)
-                    putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
                 }
-                
                 speechRecognizer?.startListening(intent)
 
             } catch (e: Exception) {
                 btnMic1?.text = "🎤"
-                Toast.makeText(this, "Requiere la App de Google habilitada", Toast.LENGTH_LONG).show()
+                launchExternalVoiceRecognition()
+            }
+        }
+    }
+
+    private fun launchExternalVoiceRecognition() {
+        try {
+            // Intenta usar el VoiceActivity de emergencia si lo tienes
+            val intent = Intent(this, Class.forName("com.brayan.tecladoanclado.VoiceActivity"))
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            startActivity(intent)
+        } catch (e: Exception) {
+            // Último recurso: Lanza la ventana grande de Google
+            try {
+                val fallbackIntent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                    putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                    putExtra(RecognizerIntent.EXTRA_LANGUAGE, "es-HN")
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                startActivity(fallbackIntent)
+            } catch (ex: Exception) {
+                Toast.makeText(this, "Falla total: Instala Google Assistant", Toast.LENGTH_LONG).show()
             }
         }
     }
@@ -537,10 +536,16 @@ class MiTecladoAnclado : InputMethodService() {
                 
                 if (tag == "SUGGESTION") continue
                 
+                // LA SOLUCIÓN MAESTRA: ONTOUCH PARA BOTONES DE HERRAMIENTAS
                 val isActionKey = tag in listOf("MIC", "OPEN_TRANSLATOR", "CLIPBOARD", "MODE_LETTERS", "CLEAR_CLIPBOARD", "OPEN_EMOJI", "MODE_SYM1", "MODE_SYM2", "MODE_NUMPAD", "CLOSE_TRANSLATOR", "LANG_TOGGLE", "TRANSLATE_SEND", "TYPE_TRIGGER")
                 
                 if (isActionKey) {
-                    child.setOnClickListener { handleKeyPress(child) }
+                    child.setOnTouchListener { v, event ->
+                        if (event.actionMasked == MotionEvent.ACTION_DOWN || event.actionMasked == MotionEvent.ACTION_POINTER_DOWN) {
+                            handleKeyPress(child)
+                        }
+                        true
+                    }
                     continue
                 }
 
@@ -667,7 +672,7 @@ class MiTecladoAnclado : InputMethodService() {
             "LANG_TOGGLE" -> {
                 playClickFeedback(button)
                 isEsToEn = !isEsToEn
-                button.text = if (isEsToEn) "ES ➔ EN" else "EN ➔ ES"
+                btnLangToggle?.text = if (isEsToEn) "ES ➔ EN" else "EN ➔ ES"
             }
             "TRANSLATE_SEND" -> translateText(button)
         }
