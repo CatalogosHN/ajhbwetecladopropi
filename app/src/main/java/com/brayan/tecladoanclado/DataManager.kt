@@ -17,7 +17,8 @@ object DataManager {
     private const val KEY_VIBE = "key_vibration"
     private const val KEY_AUTOCORRECT = "key_autocorrect"
     private const val KEY_LEARNED_WORDS = "key_learned_words"
-    private const val KEY_QR_TRIGGER = "key_qr_trigger" // NUEVO
+    private const val KEY_QR_TRIGGER = "key_qr_trigger"
+    private const val KEY_RECENT_EMOJIS = "key_recent_emojis" // EL RELOJITO DE EMOJIS
 
     private fun getPrefs(context: Context): SharedPreferences {
         return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -60,7 +61,20 @@ object DataManager {
     fun isAutocorrectEnabled(context: Context): Boolean = getPrefs(context).getBoolean(KEY_AUTOCORRECT, true)
     fun setAutocorrectEnabled(context: Context, enabled: Boolean) = getPrefs(context).edit().putBoolean(KEY_AUTOCORRECT, enabled).apply()
 
-    // --- NUEVO: TECLA GATILLO PARA RESPUESTAS RÁPIDAS ---
     fun getQrTrigger(context: Context): String = getPrefs(context).getString(KEY_QR_TRIGGER, "[") ?: "["
     fun setQrTrigger(context: Context, trigger: String) = getPrefs(context).edit().putString(KEY_QR_TRIGGER, trigger).apply()
+
+    // --- MAGIA DE EMOJIS RECIENTES ---
+    fun loadRecentEmojis(context: Context): MutableList<String> {
+        val json = getPrefs(context).getString(KEY_RECENT_EMOJIS, null) ?: return mutableListOf()
+        val type = object : TypeToken<MutableList<String>>() {}.type
+        return Gson().fromJson(json, type)
+    }
+    fun addRecentEmoji(context: Context, emoji: String) {
+        val recents = loadRecentEmojis(context)
+        recents.remove(emoji) // Si ya existe, lo borra para ponerlo al principio
+        recents.add(0, emoji)
+        if (recents.size > 40) recents.removeAt(recents.size - 1) // Máximo 40 recientes
+        getPrefs(context).edit().putString(KEY_RECENT_EMOJIS, Gson().toJson(recents)).apply()
+    }
 }
