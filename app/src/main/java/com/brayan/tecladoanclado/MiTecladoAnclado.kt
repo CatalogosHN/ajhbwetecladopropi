@@ -4,7 +4,6 @@ import android.Manifest
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.graphics.Color
 import android.graphics.Typeface
 import android.inputmethodservice.InputMethodService
@@ -14,11 +13,6 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
-import android.os.VibrationEffect
-import android.os.Vibrator
-import android.speech.RecognitionListener
-import android.speech.RecognizerIntent
-import android.speech.SpeechRecognizer
 import android.view.HapticFeedbackConstants
 import android.view.KeyEvent
 import android.view.MotionEvent
@@ -43,32 +37,25 @@ import kotlin.concurrent.thread
 class MiTecladoAnclado : InputMethodService() {
     private lateinit var adapter: PinnedAdapter
     private lateinit var clipboardManager: ClipboardManager
-    private var speechRecognizer: SpeechRecognizer? = null
     
-    // Motor Anti-Latencia
     private val backgroundExecutor = java.util.concurrent.Executors.newSingleThreadExecutor()
     private val mainHandler = Handler(Looper.getMainLooper())
     
-    // Motores de Hardware
     private lateinit var audioManager: AudioManager
-    private lateinit var vibrator: Vibrator
     private var soundEnabled = true
     private var soundEnterEnabled = true
     private var vibrationEnabled = false
     private var autocorrectEnabled = true
     
-    // Memoria y Estados
     private var learnedWords = mutableSetOf<String>()
     private var currentBestSuggestion = ""
     private var shiftState = 0
     private var lastShiftTime = 0L
     
-    // Respuestas Rápidas
     private var allQrItems = mutableListOf<QuickReplyItem>()
     private lateinit var qrAdapter: QuickReplyKeyboardAdapter
     private var qrTriggerChar = "["
     
-    // Contenedores UI
     private lateinit var layoutTopBar: View
     private lateinit var layoutSuggestionsBar: View
     private lateinit var layoutTranslatorBar: View
@@ -87,8 +74,18 @@ class MiTecladoAnclado : InputMethodService() {
 
     private var btnMic1: Button? = null
     private var btnQrTrigger: Button? = null
-    private var btnLangToggle: Button? = null
+    private lateinit var btnLangToggle: Button
     private var isEsToEn = true
+
+    // RECEPTOR NINJA: Espera el texto del dictado de voz
+    private val voiceReceiver = object : android.content.BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            val text = intent?.getStringExtra("text")
+            if (!text.isNullOrEmpty()) {
+                currentInputConnection?.commitText("$text ", 1)
+            }
+        }
+    }
 
     private val deleteRunnable = object : Runnable {
         override fun run() {
@@ -111,13 +108,12 @@ class MiTecladoAnclado : InputMethodService() {
         clipboardManager = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
         clipboardManager.addPrimaryClipChangedListener(clipListener)
         audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
-        vibrator = getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
         
         learnedWords = DataManager.loadLearnedWords(this)
         
         backgroundExecutor.execute {
             if (learnedWords.size < 5000) {
-                mainHandler.post { Toast.makeText(this@MiTecladoAnclado, "Descargando Diccionario (80k)...", Toast.LENGTH_SHORT).show() }
+                mainHandler.post { Toast.makeText(this@MiTecladoAnclado, "Descargando Diccionario (80k palabras)...", Toast.LENGTH_SHORT).show() }
                 try {
                     val urlStr = "https://raw.githubusercontent.com/javierarce/palabras/master/listado-general.txt"
                     val conn = URL(urlStr).openConnection() as HttpURLConnection
@@ -129,13 +125,22 @@ class MiTecladoAnclado : InputMethodService() {
                             .filter { it.length > 2 }
                         learnedWords.addAll(words)
                         DataManager.saveLearnedWords(this@MiTecladoAnclado, learnedWords)
-                        mainHandler.post { Toast.makeText(this@MiTecladoAnclado, "¡Diccionario Instalado!", Toast.LENGTH_LONG).show() }
+                        mainHandler.post { Toast.makeText(this@MiTecladoAnclado, "¡Diccionario Español Instalado!", Toast.LENGTH_LONG).show() }
                     }
                 } catch (e: Exception) {
                     val baseWords = listOf("qué", "cómo", "cuándo", "dónde", "quién", "método", "envío", "garantía", "cámara", "teléfono", "también", "está", "días", "gracias", "artículo", "domicilio", "transferencia", "depósito", "número", "página", "tecnología", "promoción", "atención", "inmediata", "catálogo", "hola", "buenas", "tardes", "noches", "lempiras", "éxito", "rápido", "fácil", "útil", "increíble", "excelente", "ubicación", "dirección", "código", "guía", "recibo", "comprobante", "crédito", "débito", "artículos", "electrónica", "audífonos", "batería", "cargador", "imágenes", "vídeo", "música", "tamaño", "volumen", "computación")
                     learnedWords.addAll(baseWords)
                 }
             }
+        }
+
+        // Registrar el Receptor Ninja
+        val filter = android.content.IntentFilter("com.brayan.tecladoanclado.VOICE_TEXT")
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(voiceReceiver, filter, Context.RECEIVER_EXPORTED)
+        } else {
+            @Suppress("UnspecifiedRegisterReceiverFlag")
+            registerReceiver(voiceReceiver, filter)
         }
     }
 
@@ -151,7 +156,6 @@ class MiTecladoAnclado : InputMethodService() {
         btnSuggest2 = view.findViewById(R.id.btnSuggest2)
         btnSuggest3 = view.findViewById(R.id.btnSuggest3)
         
-        // LAS SUGERENCIAS SON LAS ÚNICAS QUE QUEDAN CON CLIC NORMAL
         val suggestListener = View.OnClickListener {
             val text = (it as Button).text.toString()
             if (text.isNotBlank()) {
@@ -173,6 +177,14 @@ class MiTecladoAnclado : InputMethodService() {
         btnMic1 = view.findViewById(R.id.btnMic1)
         btnQrTrigger = view.findViewById(R.id.btnQrTrigger)
         btnLangToggle = view.findViewById(R.id.btnLangToggle)
+
+        val btnTranslateSend = view.findViewById<Button>(R.id.btnTranslateSend)
+        btnLangToggle.setOnClickListener {
+            playClickFeedback(btnLangToggle)
+            isEsToEn = !isEsToEn
+            btnLangToggle.text = if (isEsToEn) "ES ➔ EN" else "EN ➔ ES"
+        }
+        btnTranslateSend.setOnClickListener { translateText(btnTranslateSend) }
 
         val btnClipboardEnter = view.findViewById<Button>(R.id.btnClipboardEnter)
         btnClipboardEnter?.setOnTouchListener { v, event ->
@@ -259,77 +271,15 @@ class MiTecladoAnclado : InputMethodService() {
         rvQuickRepliesKeyboard.visibility = View.GONE
     }
 
-    // --- NUEVO DICTADO: A PRUEBA DE FALLOS Y CERO LATENCIA ---
+    // --- LLAMADO AL NINJA (VoiceActivity) ---
     private fun startVoiceRecognition() {
-        // 1. Verificación agresiva de permisos
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
-            Toast.makeText(this, "⚠️ Otorga permiso de micrófono en Ajustes", Toast.LENGTH_LONG).show()
-            val intent = Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
-            intent.data = android.net.Uri.parse("package:$packageName")
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            startActivity(intent)
-            return
-        }
-
-        mainHandler.post {
-            try {
-                speechRecognizer?.destroy()
-                speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this)
-                
-                speechRecognizer?.setRecognitionListener(object : RecognitionListener {
-                    override fun onReadyForSpeech(params: Bundle?) { btnMic1?.text = "🔴" }
-                    override fun onBeginningOfSpeech() { btnMic1?.text = "🗣️" }
-                    override fun onRmsChanged(rmsdB: Float) {}
-                    override fun onBufferReceived(buffer: ByteArray?) {}
-                    override fun onEndOfSpeech() { btnMic1?.text = "⏳" }
-                    override fun onError(error: Int) { 
-                        btnMic1?.text = "🎤"
-                        Toast.makeText(this@MiTecladoAnclado, "Redirigiendo a motor alterno...", Toast.LENGTH_SHORT).show()
-                        launchExternalVoiceRecognition()
-                    }
-                    override fun onResults(results: Bundle?) {
-                        btnMic1?.text = "🎤"
-                        val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
-                        if (!matches.isNullOrEmpty()) {
-                            currentInputConnection?.commitText(matches[0] + " ", 1)
-                        }
-                        speechRecognizer?.destroy()
-                    }
-                    override fun onPartialResults(partialResults: Bundle?) {}
-                    override fun onEvent(eventType: Int, params: Bundle?) {}
-                })
-
-                val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-                    putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-                    putExtra(RecognizerIntent.EXTRA_LANGUAGE, "es-HN")
-                }
-                speechRecognizer?.startListening(intent)
-
-            } catch (e: Exception) {
-                btnMic1?.text = "🎤"
-                launchExternalVoiceRecognition()
-            }
-        }
-    }
-
-    private fun launchExternalVoiceRecognition() {
+        playClickFeedback(btnMic1)
         try {
-            // Intenta usar el VoiceActivity de emergencia si lo tienes
             val intent = Intent(this, Class.forName("com.brayan.tecladoanclado.VoiceActivity"))
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             startActivity(intent)
         } catch (e: Exception) {
-            // Último recurso: Lanza la ventana grande de Google
-            try {
-                val fallbackIntent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-                    putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-                    putExtra(RecognizerIntent.EXTRA_LANGUAGE, "es-HN")
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                }
-                startActivity(fallbackIntent)
-            } catch (ex: Exception) {
-                Toast.makeText(this, "Falla total: Instala Google Assistant", Toast.LENGTH_LONG).show()
-            }
+            Toast.makeText(this, "Falla al iniciar micrófono", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -536,7 +486,6 @@ class MiTecladoAnclado : InputMethodService() {
                 
                 if (tag == "SUGGESTION") continue
                 
-                // LA SOLUCIÓN MAESTRA: ONTOUCH PARA BOTONES DE HERRAMIENTAS
                 val isActionKey = tag in listOf("MIC", "OPEN_TRANSLATOR", "CLIPBOARD", "MODE_LETTERS", "CLEAR_CLIPBOARD", "OPEN_EMOJI", "MODE_SYM1", "MODE_SYM2", "MODE_NUMPAD", "CLOSE_TRANSLATOR", "LANG_TOGGLE", "TRANSLATE_SEND", "TYPE_TRIGGER")
                 
                 if (isActionKey) {
@@ -733,7 +682,7 @@ class MiTecladoAnclado : InputMethodService() {
     override fun onDestroy() {
         super.onDestroy()
         clipboardManager.removePrimaryClipChangedListener(clipListener) 
-        speechRecognizer?.destroy()
+        try { unregisterReceiver(voiceReceiver) } catch (e: Exception) {}
     }
 
     inner class EmojiAdapter(private val emojiList: List<String>, private val onEmojiClick: (String) -> Unit) : RecyclerView.Adapter<EmojiAdapter.EmojiViewHolder>() {
