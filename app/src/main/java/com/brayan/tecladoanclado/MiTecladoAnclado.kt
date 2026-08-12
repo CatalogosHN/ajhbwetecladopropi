@@ -1,7 +1,9 @@
 package com.brayan.tecladoanclado
 
+import android.Manifest
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.Intent
 import android.graphics.Color
 import android.graphics.Typeface
 import android.inputmethodservice.InputMethodService
@@ -11,8 +13,6 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
-import android.os.VibrationEffect
-import android.os.Vibrator
 import android.view.HapticFeedbackConstants
 import android.view.KeyEvent
 import android.view.MotionEvent
@@ -24,6 +24,7 @@ import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
+import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -41,7 +42,6 @@ class MiTecladoAnclado : InputMethodService() {
     private val mainHandler = Handler(Looper.getMainLooper())
     
     private lateinit var audioManager: AudioManager
-    private lateinit var vibrator: Vibrator
     private var soundEnabled = true
     private var soundEnterEnabled = true
     private var vibrationEnabled = false
@@ -71,22 +71,33 @@ class MiTecladoAnclado : InputMethodService() {
     private lateinit var layoutNumpad: View
     private lateinit var layoutClipboard: View
     private lateinit var layoutEmojis: View 
-    private lateinit var rvEmojis: RecyclerView
-    private var emojiAdapter: EmojiAdapter? = null
 
     private var btnMic1: Button? = null
     private var btnQrTrigger: Button? = null
     private lateinit var btnLangToggle: Button
     private var isEsToEn = true
 
-    // --- LISTAS DE EMOJIS OFICIALES DE WHATSAPP ---
-    private val emojisSmileys = "😀,😃,😄,😁,😆,😅,😂,🤣,🥲,☺️,😊,😇,🙂,🙃,😉,😌,😍,🥰,😘,😗,😙,😚,😋,😛,😝,😜,🤪,🤨,🧐,🤓,😎,🥸,🤩,🥳,😏,😒,😞,😔,😟,😕,🙁,☹️,😣,😖,😫,😩,🥺,😢,😭,😤,😠,😡,🤬,🤯,😳,🥵,🥶,😱,😨,😰,😥,😓,🫣,🤭,🫢,🫡,🤔,🤫,🤥,😶,😐,😑,😬,🙄,😯,😦,😧,😮,😲,🥱,😴,🤤,😪,😮‍💨,😵,😵‍💫,🤐,🥴,🤢,🤮,🤧,😷,🤒,🤕,🤑,🤠,😈,👿,👹,👺,🤡,💩,👻,💀,👽,👾,🤖,🎃,🫶,🤲,👐,🙌,👏,🤝,👍,👎,👊,✊,🤛,🤜,🤞,✌️,🫰,🤟,🤘,👌,🤌,🤏,🫳,🫴,👈,👉,👆,👇,☝️,✋,🤚,🖐,🖖,👋,🤙,💪,🦾,🖕,✍️,🙏,🦶,🦵,🦿,💄,💋,👄,🦷,👅,👂,🦻,👃,👣,👁,👀,🫀,🫁,🧠,🗣,👤,👥,🫂,👶,👧,🧒,👦,👩,🧑,👨,👩‍🦱,🧑‍🦱,👨‍🦱,👩‍🦰,🧑‍🦰,👨‍🦰,👱‍♀️,👱,👱‍♂️,👩‍🦳,🧑‍🦳,👨‍🦳,👩‍🦲,🧑‍🦲,👨‍🦲,🧔‍♀️,🧔,🧔‍♂️,👵,🧓,👴,👲,👳‍♀️,👳,👳‍♂️,🧕,👮‍♀️,👮,👮‍♂️,👷‍♀️,👷,👷‍♂️,💂‍♀️,💂,💂‍♂️,🕵️‍♀️,🕵️,🕵️‍♂️,👩‍⚕️,🧑‍⚕️,👨‍⚕️,👩‍🌾,🧑‍🌾,👨‍🌾,👩‍🍳,🧑‍🍳,👨‍🍳,👩‍🎓,🧑‍🎓,👨‍🎓,👩‍🎤,🧑‍🎤,👨‍🎤,👩‍🏫,🧑‍🏫,👨‍🏫,👩‍🏭,🧑‍🏭,👨‍🏭,👩‍💻,🧑‍💻,👨‍💻,👩‍💼,🧑‍💼,👨‍💼,👩‍🔧,🧑‍🔧,👨‍🔧,👩‍🔬,🧑‍🔬,👨‍🔬,👩‍🎨,🧑‍🎨,👨‍🎨,👩‍🚒,🧑‍🚒,👨‍🚒,👩‍✈️,🧑‍✈️,👨‍✈️,👩‍🚀,🧑‍🚀,👨‍🚀,👩‍⚖️,🧑‍⚖️,👨‍⚖️,👰‍♀️,👰,👰‍♂️,🤵‍♀️,🤵,🤵‍♂️,👸,🤴,🥷,🦸‍♀️,🦸,🦸‍♂️,🦹‍♀️,🦹,🦹‍♂️,🤶,🧑‍🎄,🎅,🧙‍♀️,🧙,🧙‍♂️,🧝‍♀️,🧝,🧝‍♂️,🧛‍♀️,🧛,🧛‍♂️,🧟‍♀️,🧟,🧟‍♂️,🧞‍♀️,🧞,🧞‍♂️,🧜‍♀️,🧜,🧜‍♂️,🧚‍♀️,🧚,🧚‍♂️,👼,🤰,🫄,🫃,🤱,👩‍🍼,🧑‍🍼,👨‍🍼,🙇‍♀️,🙇,🙇‍♂️,💁‍♀️,💁,💁‍♂️,🙅‍♀️,🙅,🙅‍♂️,🙆‍♀️,🙆,🙆‍♂️,🙋‍♀️,🙋,🙋‍♂️,🧏‍♀️,🧏,🧏‍♂️,🤦‍♀️,🤦,🤦‍♂️,🤷‍♀️,🤷,🤷‍♂️,🙎‍♀️,🙎,🙎‍♂️,🙍‍♀️,🙍,🙍‍♂️,💇‍♀️,💇,💇‍♂️,💆‍♀️,💆,💆‍♂️,🧖‍♀️,🧖,🧖‍♂️,💅,🤳,💃,🕺,👯‍♀️,👯,👯‍♂️,🕴,👩‍🦽,🧑‍🦽,👨‍🦽,👩‍🦼,🧑‍🦼,👨‍🦼,🚶‍♀️,🚶,🚶‍♂️,👩‍🦯,🧑‍🦯,👨‍🦯,🧎‍♀️,🧎,🧎‍♂️,🏃‍♀️,🏃,🏃‍♂️,🧍‍♀️,🧍,🧍‍♂️,👫,👭,👬,👩‍❤️‍👨,👩‍❤️‍👩,💑,👨‍❤️‍👨,👩‍❤️‍💋‍👨,👩‍❤️‍💋‍👩,💏,👨‍❤️‍💋‍👨,👨‍👩‍👦,👨‍👩‍👧,👨‍👩‍👧‍👦,👨‍👩‍👦‍👦,👨‍👩‍👧‍👧,👩‍👩‍👦,👩‍👩‍👧,👩‍👩‍👧‍👦,👩‍👩‍👦‍👦,👩‍👩‍👧‍👧,👨‍👨‍👦,👨‍👨‍👧,👨‍👨‍👧‍👦,👨‍👨‍👦‍👦,👨‍👨‍👧‍👧,👩‍👦,👩‍👧,👩‍👧‍👦,👩‍👦‍👦,👩‍👧‍👧,👨‍👦,👨‍👧,👨‍👧‍👦,👨‍👦‍👦,👨‍👧‍👧".split(",")
-    private val emojisAnimals = "🐶,🐱,🐭,🐹,🐰,🦊,🐻,🐼,🐻‍❄️,🐨,🐯,🦁,🐮,🐷,🐽,🐸,🐵,🙈,🙉,🙊,🐒,🐔,🐧,🐦,🐤,🐣,🐥,🦆,🦅,🦉,🦇,🐺,🐗,🐴,🦄,🐝,🪱,🐛,🦋,🐌,🐞,🐜,🪰,🪲,🪳,🦟,🦗,🕷,🕸,🦂,🐢,🐍,🦎,🦖,🦕,🐙,🦑,🦐,🦞,🦀,🐡,🐠,🐟,🐬,🐳,🐋,🦈,🦭,🐊,🐅,🐆,🦓,🦍,🦧,🦣,🐘,🦛,🦏,🐪,🐫,🦒,🦘,🦬,🐃,🐂,🐄,🐎,🐖,🐏,🐑,🦙,🐐,🦌,🐕,🐩,🦮,🐕‍🦺,🐈,🐈‍⬛,🪶,🐓,🦃,🦤,🦚,🦜,🦢,🦩,🕊,🐇,🦝,🦨,🦡,🦫,🦦,🦥,🐁,🐀,🐿,🦔,🐾,🐉,🐲,🌵,🎄,🌲,🌳,🌴,🪵,🌱,🌿,☘️,🍀,🎍,🪴,🎋,🍃,🍂,🍁,🍄,🐚,🪨,🌾,💐,🌷,🌹,🥀,🌺,🌸,🌼,🌻,🌞,🌝,🌛,🌜,🌚,🌕,🌖,🌗,🌘,🌑,🌒,🌓,🌔,🌙,🌎,🌍,🌏,🪐,💫,⭐️,🌟,✨,⚡️,☄️,💥,🔥,🌪,🌈,☀️,🌤,⛅️,🌥,☁️,🌦,🌧,⛈,🌩,🌨,❄️,☃️,⛄️,🌬,💨,💧,💦,☔️,☂️,🌊,🌫".split(",")
-    private val emojisFood = "🍏,🍎,🍐,🍊,🍋,🍌,🍉,🍇,🍓,🍈,🍒,🍑,🥭,🍍,🥥,🥝,🍅,🍆,🥑,🥦,🥬,🥒,🌶,🫑,🌽,🥕,🫒,🧄,🧅,🥔,🍠,🥐,🥯,🍞,🥖,🥨,🧀,🥚,🍳,🧈,🥞,🧇,🥓,🥩,🍗,🍖,🦴,🌭,🍔,🍟,🍕,🫓,🥪,🥙,🧆,🫔,🌮,🌯,🫢,🥗,🥘,🫕,🥫,🍝,🍜,🍲,🍛,🍣,🍱,🥟,🦪,🍤,🍙,🍚,🍘,🍥,🥠,🥮,🍢,🍡,🍧,🍨,🍦,🥧,🧁,🍰,🎂,🍮,🍭,🍬,🍫,🍿,🍩,🍪,🌰,🥜,🍯,🥛,🍼,🫖,☕️,🍵,🧃,🥤,🧋,🍶,🍺,🍻,🥂,🍷,🥃,🍸,🍹,🧉,🍾,🧊,🥄,🍴,🍽,🥣,🥡,🥢,🧂".split(",")
-    private val emojisSports = "⚽️,🏀,🏈,⚾️,🥎,🎾,🏐,🏉,🥏,🎱,🪀,🏓,🏸,🏒,🏑,🥍,🏏,🪃,🥅,⛳️,🪁,🏹,🎣,🤿,🥊,🥋,🎽,🛹,🛼,🛷,⛸,🥌,🎿,⛷,🏂,🪂,🏋️‍♀️,🏋️,🏋️‍♂️,🤼‍♀️,🤼,🤼‍♂️,🤸‍♀️,🤸,🤸‍♂️,⛹️‍♀️,⛹️,⛹️‍♂️,🤺,🤾‍♀️,🤾,🤾‍♂️,🏌️‍♀️,🏌️,🏌️‍♂️,🏇,🧘‍♀️,🧘,🧘‍♂️,🏄‍♀️,🏄,🏄‍♂️,🏊‍♀️,🏊,🏊‍♂️,🤽‍♀️,🤽,🤽‍♂️,🚣‍♀️,🚣,🚣‍♂️,🧗‍♀️,🧗,🧗‍♂️,🚵‍♀️,🚵,🚵‍♂️,🚴‍♀️,🚴,🚴‍♂️,🏆,🥇,🥈,🥉,🏅,🎖,🏵,🎗,🎫,🎟,🎪,🤹‍♀️,🤹,🤹‍♂️,🎭,🩰,🎨,🎬,🎤,🎧,🎼,🎹,🥁,🪘,🎷,🎺,🪗,🎸,🪕,🎻,🎲,♟,🎯,🎳,🎮,🎰,🧩".split(",")
-    private val emojisTravel = "🚗,🚕,🚙,🚌,🚎,🏎,🚓,🚑,🚒,🚐,🛻,🚚,🚛,🚜,🦯,🦽,🦼,🛴,🚲,🛵,🏍,🛺,🚨,🚔,🚍,🚘,🚖,🚡,🚠,🚟,🚃,🚋,🚞,🚝,🚄,🚅,🚈,🚂,🚆,🚇,🚊,🚉,✈️,🛫,🛬,🛩,💺,🛰,🚀,🛸,🚁,🛶,⛵️,🚤,🛥,🛳,⛴,🚢,⚓️,🪝,⛽️,🚧,🚦,🚥,🚏,🗺,🗿,🗽,🗼,🏰,🏯,🏟,🎡,🎢,🎠,⛲️,⛱,🏖,🏝,🏜,🌋,⛰,🏔,🗻,🏕,⛺️,🛖,🏠,🏡,🏘,🏚,🏗,🏭,🏢,🏬,🏣,🏤,🏥,🏦,🏨,🏪,🏫,🏩,💒,🏛,⛪️,🕌,🕍,🛕,🕋,⛩,🛤,🛣,🗾,🎑,🏞,🌅,🌄,🌠,🎇,🎆,🌇,🌆,🏙,🌃,🌌,🌉,🌁".split(",")
-    private val emojisObjects = "⌚️,📱,📲,💻,⌨️,🖥,🖨,🖱,🖲,🕹,🗜,💽,💾,💿,📀,📼,📷,📸,📹,🎥,📽,🎞,📞,☎️,📟,📠,📺,📻,🎙,🎚,🎛,🧭,⏱,⏲,⏰,🕰,⌛️,⏳,📡,🔋,🔌,💡,🔦,🕯,🪔,🧯,🛢,💸,💵,💴,💶,💷,🪙,💰,💳,💎,⚖️,🪜,🧰,🪛,🔧,🔨,⚒,🛠,⛏,🪚,🔩,⚙️,🪤,🧱,⛓,🧲,🔫,💣,🧨,🪓,🔪,🗡,⚔️,🛡,🚬,⚰️,🪦,⚱️,🏺,🔮,📿,🧿,💈,⚗️,🔭,🔬,🕳,🩹,🩺,💊,💉,🩸,🧬,🦠,🧫,🧪,🌡,🧹,🪠,🧺,🧻,🪣,🧼,🪥,🧽,🧯,🛒".split(",")
-    private val emojisSymbols = "❤️,🧡,💛,💚,💙,💜,🖤,🤍,🤎,💔,❣️,💕,💞,💓,💗,💖,💘,💝,❤️‍🔥,❤️‍🩹,☮️,✝️,☪️,🕉,☸️,✡️,🔯,🕎,☯️,☦️,🛐,⛎,♈️,♉️,♊️,♋️,♌️,♍️,♎️,♏️,♐️,♑️,♒️,♓️,🆔,⚛️,🉑,☢️,☣️,📴,📳,🈶,🈚️,🈸,🈺,🈷️,✴️,🆚,💮,🉐,㊙️,㊗️,🈴,🈵,🈹,🈲,🅰️,🅱️,🆎,🆑,🅾️,🆘,❌,⭕️,🛑,⛔️,📛,🚫,💯,💢,♨️,🚷,🚯,🚳,🚱,🔞,📵,🚭,❗️,❕,❓,❔,‼️,⁉️,🔅,🔆,〽️,⚠️,🚸,🔱,⚜️,🔰,♻️,✅,🈯️,💹,❇️,✳️,❎,🌐,💠,Ⓜ️,🌀,💤,🏧,🚾,♿️,🅿️,🛗,🈳,🈂️,🛂,🛃,🛄,🛅,🚹,🚺,🚼,⚧,🚻,🚮,🎦,📶,🈁,🔣,ℹ️,🔤,🔡,🔠,🆖,🆗,🆙,🆒,🆕,🆓,0️⃣,1️⃣,2️⃣,3️⃣,4️⃣,5️⃣,6️⃣,7️⃣,8️⃣,9️⃣,🔟,🔢,▶️,⏸,⏯,⏹,⏺,⏭,⏮,⏩,⏪,🔀,🔁,🔂,◀️,🔼,🔽,⏫,⏬,➡️,⬅️,⬆️,⬇️,↗️,↘️,↙️,↖️,↕️,↔️,↪️,↩️,⤴️,⤵️,🔀,🔁,🔂,🔄,🔃,🎵,🎶,➕,➖,➗,✖️,♾,💲,💱,™️,©️,®️,〰️,➰,➿,🔚,🔙,🔛,🔝,🔜,✔️,☑️,🔘,🔴,🟠,🟡,🟢,🔵,🟣,⚫️,⚪️,🟤,🔺,🔻,🔸,🔹,🔶,🔷,🔳,🔲,▪️,▫️,◾️,◽️,◼️,◻️,⬛️,⬜️,🟥,🟧,🟨,🟩,🟦,🟪,⬛️,⬜️,🟫,🔈,🔇,🔉,🔊,🔔,🔕,📣,📢,👁‍🗨,💬,💭,🗯,♠️,♣️,♥️,♦️,🃏,🎴,🀄️,🕐,🕑,🕒,🕓,🕔,🕕,🕖,🕗,🕘,🕙,🕚,🕛,🕜,🕝,🕞,🕟,🕠,🕡,🕢,🕣,🕤,🕥,🕦,🕧".split(",")
+    // LISTAS DE EMOJIS OFICIALES DE WHATSAPP
+    private val emojisSmileys = "😀,😃,😄,😁,😆,😅,😂,🤣,🥲,☺️,😊,😇,🙂,🙃,😉,😌,😍,🥰,😘,😗,😙,😚,😋,😛,😝,😜,🤪,🤨,🧐,🤓,😎,🥸,🤩,🥳,😏,😒,😞,😔,😟,😕,🙁,☹️,😣,😖,😫,😩,🥺,😢,😭,😤,😠,😡,🤬,🤯,😳,🥵,🥶,😱,😨,😰,😥,😓,🫣,🤭,🫢,🫡,🤔,🤫,🤥,😶,😐,😑,😬,🙄,😯,😦,😧,😮,😲,🥱,😴,🤤,😪,😮‍💨,😵,😵‍💫,🤐,🥴,🤢,🤮,🤧,😷,🤒,🤕,🤑,🤠,😈,👿,👹,👺,🤡,💩,👻,💀,👽,👾,🤖,🎃,🫶,🤲,👐,🙌,👏,🤝,👍,👎,👊,✊,🤛,🤜,🤞,✌️,🫰,🤟,🤘,👌,🤌,🤏,🫳,🫴,👈,👉,👆,👇,☝️,✋,🤚,🖐,🖖,👋,🤙,💪,🦾,🖕,✍️,🙏,🦶,🦵,🦿,💄,💋,👄,🦷,👅,👂,🦻,👃,👣,👁,👀,🫀,🫁,🧠,🗣,👤,👥,🫂,👶,👧,🧒,👦,👩,🧑,👨,👩‍🦱,🧑‍🦱,👨‍🦱,👩‍🦰,🧑‍🦰,👨‍🦰,👱‍♀️,👱,👱‍♂️,👩‍🦳,🧑‍🦳,👨‍🦳,👩‍🦲,🧑‍🦲,👨‍🦲,🧔‍♀️,🧔,🧔‍♂️,👵,🧓,👴,👲,👳‍♀️,👳,👳‍♂️,🧕,👮‍♀️,👮,👮‍♂️,👷‍♀️,👷,👷‍♂️,💂‍♀️,💂,💂‍♂️,🕵️‍♀️,🕵️,🕵️‍♂️,👩‍⚕️,🧑‍⚕️,👨‍⚕️,👩‍🌾,🧑‍🌾,👨‍🌾,👩‍🍳,🧑‍🍳,👨‍🍳,👩‍🎓,🧑‍🎓,👨‍🎓,👩‍🎤,🧑‍🎤,👨‍🎤,👩‍🏫,🧑‍🏫,👨‍🏫,👩‍🏭,🧑‍🏭,👨‍🏭,👩‍💻,🧑‍💻,👨‍💻,👩‍💼,🧑‍💼,👨‍💼,👩‍🔧,🧑‍🔧,👨‍🔧,👩‍🔬,🧑‍🔬,👨‍🔬,👩‍🎨,🧑‍🎨,👨‍🎨,👩‍🚒,🧑‍🚒,👨‍🚒,👩‍✈️,🧑‍✈️,👨‍✈️,👩‍🚀,🧑‍🚀,👨‍🚀,👩‍⚖️,🧑‍⚖️,👨‍⚖️,👰‍♀️,👰,👰‍♂️,🤵‍♀️,🤵,🤵‍♂️,👸,🤴,🥷,🦸‍♀️,🦸,🦸‍♂️,🦹‍♀️,🦹,🦹‍♂️,🤶,🧑‍🎄,🎅,🧙‍♀️,🧙,🧙‍♂️,🧝‍♀️,🧝,🧝‍♂️,🧛‍♀️,🧛,🧛‍♂️,🧟‍♀️,🧟,🧟‍♂️,🧞‍♀️,🧞,🧞‍♂️,🧜‍♀️,🧜,🧜‍♂️,🧚‍♀️,🧚,🧚‍♂️,👼,🤰,🫄,🫃,🤱,👩‍🍼,🧑‍🍼,👨‍🍼,🙇‍♀️,🙇,🙇‍♂️,💁‍♀️,💁,💁‍♂️,🙅‍♀️,🙅,🙅‍♂️,🙆‍♀️,🙆,🙆‍♂️,🙋‍♀️,🙋,🙋‍♂️,🧏‍♀️,🧏,🧏‍♂️,🤦‍♀️,🤦,🤦‍♂️,🤷‍♀️,🤷,🤷‍♂️,🙎‍♀️,🙎,🙎‍♂️,🙍‍♀️,🙍,🙍‍♂️,💇‍♀️,💇,💇‍♂️,💆‍♀️,💆,💆‍♂️,🧖‍♀️,🧖,🧖‍♂️,💅,🤳,💃,🕺,👯‍♀️,👯,👯‍♂️,🕴,👩‍🦽,🧑‍🦽,👨‍🦽,👩‍🦼,🧑‍🦼,👨‍🦼,🚶‍♀️,🚶,🚶‍♂️,👩‍🦯,🧑‍🦯,👨‍🦯,🧎‍♀️,🧎,🧎‍♂️,🏃‍♀️,🏃,🏃‍♂️,🧍‍♀️,🧍,🧍‍♂️,👫,👭,👬,👩‍❤️‍👨,👩‍❤️‍👩,💑,👨‍❤️‍👨,👩‍❤️‍💋‍👨,👩‍❤️‍💋‍👩,💏,👨‍❤️‍💋‍👨,👨‍👩‍👦,👨‍👩‍👧,👨‍👩‍👧‍👦,👨‍👩‍👦‍👦,👨‍👩‍👧‍👧,👩‍👩‍👦,👩‍👩‍👧,👩‍👩‍👧‍👦,👩‍👩‍👦‍👦,👩‍👩‍👧‍👧,👨‍👨‍👦,👨‍👨‍👧,👨‍👨‍👧‍👦,👨‍👨‍👦‍👦,👨‍👨‍👧‍👧,👩‍👦,👩‍👧,👩‍👧‍👦,👩‍👦‍👦,👩‍👧‍👧,👨‍👦,👨‍👧,👨‍👧‍👦,👨‍👦‍👦,👨‍👧‍👧"
+    private val emojisAnimals = "🐶,🐱,🐭,🐹,🐰,🦊,🐻,🐼,🐻‍❄️,🐨,🐯,🦁,🐮,🐷,🐽,🐸,🐵,🙈,🙉,🙊,🐒,🐔,🐧,🐦,🐤,🐣,🐥,🦆,🦅,🦉,🦇,🐺,🐗,🐴,🦄,🐝,🪱,🐛,🦋,🐌,🐞,🐜,🪰,🪲,🪳,🦟,🦗,🕷,🕸,🦂,🐢,🐍,🦎,🦖,🦕,🐙,🦑,🦐,🦞,🦀,🐡,🐠,🐟,🐬,🐳,🐋,🦈,🦭,🐊,🐅,🐆,🦓,🦍,🦧,🦣,🐘,🦛,🦏,🐪,🐫,🦒,🦘,🦬,🐃,🐂,🐄,🐎,🐖,🐏,🐑,🦙,🐐,🦌,🐕,🐩,🦮,🐕‍🦺,🐈,🐈‍⬛,🪶,🐓,🦃,🦤,🦚,🦜,🦢,🦩,🕊,🐇,🦝,🦨,🦡,🦫,🦦,🦥,🐁,🐀,🐿,🦔,🐾,🐉,🐲,🌵,🎄,🌲,🌳,🌴,🪵,🌱,🌿,☘️,🍀,🎍,🪴,🎋,🍃,🍂,🍁,🍄,🐚,🪨,🌾,💐,🌷,🌹,🥀,🌺,🌸,🌼,🌻,🌞,🌝,🌛,🌜,🌚,🌕,🌖,🌗,🌘,🌑,🌒,🌓,🌔,🌙,🌎,🌍,🌏,🪐,💫,⭐️,🌟,✨,⚡️,☄️,💥,🔥,🌪,🌈,☀️,🌤,⛅️,🌥,☁️,🌦,🌧,⛈,🌩,🌨,❄️,☃️,⛄️,🌬,💨,💧,💦,☔️,☂️,🌊,🌫"
+    private val emojisFood = "🍏,🍎,🍐,🍊,🍋,🍌,🍉,🍇,🍓,🍈,🍒,🍑,🥭,🍍,🥥,🥝,🍅,🍆,🥑,🥦,🥬,🥒,🌶,🫑,🌽,🥕,🫒,🧄,🧅,🥔,🍠,🥐,🥯,🍞,🥖,🥨,🧀,🥚,🍳,🧈,🥞,🧇,🥓,🥩,🍗,🍖,🦴,🌭,🍔,🍟,🍕,🫓,🥪,🥙,🧆,🫔,🌮,🌯,🫢,🥗,🥘,🫕,🥫,🍝,🍜,🍲,🍛,🍣,🍱,🥟,🦪,🍤,🍙,🍚,🍘,🍥,🥠,🥮,🍢,🍡,🍧,🍨,🍦,🥧,🧁,🍰,🎂,🍮,🍭,🍬,🍫,🍿,🍩,🍪,🌰,🥜,🍯,🥛,🍼,🫖,☕️,🍵,🧃,🥤,🧋,🍶,🍺,🍻,🥂,🍷,🥃,🍸,🍹,🧉,🍾,🧊,🥄,🍴,🍽,🥣,🥡,🥢,🧂"
+    private val emojisSports = "⚽️,🏀,🏈,⚾️,🥎,🎾,🏐,🏉,🥏,🎱,🪀,🏓,🏸,🏒,🏑,🥍,🏏,🪃,🥅,⛳️,🪁,🏹,🎣,🤿,🥊,🥋,🎽,🛹,🛼,🛷,⛸,🥌,🎿,⛷,🏂,🪂,🏋️‍♀️,🏋️,🏋️‍♂️,🤼‍♀️,🤼,🤼‍♂️,🤸‍♀️,🤸,🤸‍♂️,⛹️‍♀️,⛹️,⛹️‍♂️,🤺,🤾‍♀️,🤾,🤾‍♂️,🏌️‍♀️,🏌️,🏌️‍♂️,🏇,🧘‍♀️,🧘,🧘‍♂️,🏄‍♀️,🏄,🏄‍♂️,🏊‍♀️,🏊,🏊‍♂️,🤽‍♀️,🤽,🤽‍♂️,🚣‍♀️,🚣,🚣‍♂️,🧗‍♀️,🧗,🧗‍♂️,🚵‍♀️,🚵,🚵‍♂️,🚴‍♀️,🚴,🚴‍♂️,🏆,🥇,🥈,🥉,🏅,🎖,🏵,🎗,🎫,🎟,🎪,🤹‍♀️,🤹,🤹‍♂️,🎭,🩰,🎨,🎬,🎤,🎧,🎼,🎹,🥁,🪘,🎷,🎺,🪗,🎸,🪕,🎻,🎲,♟,🎯,🎳,🎮,🎰,🧩"
+    private val emojisTravel = "🚗,🚕,🚙,🚌,🚎,🏎,🚓,🚑,🚒,🚐,🛻,🚚,🚛,🚜,🦯,🦽,🦼,🛴,🚲,🛵,🏍,🛺,🚨,🚔,🚍,🚘,🚖,🚡,🚠,🚟,🚃,🚋,🚞,🚝,🚄,🚅,🚈,🚂,🚆,🚇,🚊,🚉,✈️,🛫,🛬,🛩,💺,🛰,🚀,🛸,🚁,🛶,⛵️,🚤,🛥,🛳,⛴,🚢,⚓️,🪝,⛽️,🚧,🚦,🚥,🚏,🗺,🗿,🗽,🗼,🏰,🏯,🏟,🎡,🎢,🎠,⛲️,⛱,🏖,🏝,🏜,🌋,⛰,🏔,🗻,🏕,⛺️,🛖,🏠,🏡,🏘,🏚,🏗,🏭,🏢,🏬,🏣,🏤,🏥,🏦,🏨,🏪,🏫,🏩,💒,🏛,⛪️,🕌,🕍,🛕,🕋,⛩,🛤,🛣,🗾,🎑,🏞,🌅,🌄,🌠,🎇,🎆,🌇,🌆,🏙,🌃,🌌,🌉,🌁"
+    private val emojisObjects = "⌚️,📱,📲,💻,⌨️,🖥,🖨,🖱,🖲,🕹,🗜,💽,💾,💿,📀,📼,📷,📸,📹,🎥,📽,🎞,📞,☎️,📟,📠,📺,📻,🎙,🎚,🎛,🧭,⏱,⏲,⏰,🕰,⌛️,⏳,📡,🔋,🔌,💡,🔦,🕯,🪔,🧯,🛢,💸,💵,💴,💶,💷,🪙,💰,💳,💎,⚖️,🪜,🧰,🪛,🔧,🔨,⚒,🛠,⛏,🪚,🔩,⚙️,🪤,🧱,⛓,🧲,🔫,💣,🧨,🪓,🔪,🗡,⚔️,🛡,🚬,⚰️,🪦,⚱️,🏺,🔮,📿,🧿,💈,⚗️,🔭,🔬,🕳,🩹,🩺,💊,💉,🩸,🧬,🦠,🧫,🧪,🌡,🧹,🪠,🧺,🧻,🪣,🧼,🪥,🧽,🧯,🛒"
+    private val emojisSymbols = "❤️,🧡,💛,💚,💙,💜,🖤,🤍,🤎,💔,❣️,💕,💞,💓,💗,💖,💘,💝,❤️‍🔥,❤️‍🩹,☮️,✝️,☪️,🕉,☸️,✡️,🔯,🕎,☯️,☦️,🛐,⛎,♈️,♉️,♊️,♋️,♌️,♍️,♎️,♏️,♐️,♑️,♒️,♓️,🆔,⚛️,🉑,☢️,☣️,📴,📳,🈶,🈚️,🈸,🈺,🈷️,✴️,🆚,💮,🉐,㊙️,㊗️,🈴,🈵,🈹,🈲,🅰️,🅱️,🆎,🆑,🅾️,🆘,❌,⭕️,🛑,⛔️,📛,🚫,💯,💢,♨️,🚷,🚯,🚳,🚱,🔞,📵,🚭,❗️,❕,❓,❔,‼️,⁉️,🔅,🔆,〽️,⚠️,🚸,🔱,⚜️,🔰,♻️,✅,🈯️,💹,❇️,✳️,❎,🌐,💠,Ⓜ️,🌀,💤,🏧,🚾,♿️,🅿️,🛗,🈳,🈂️,🛂,🛃,🛄,🛅,🚹,🚺,🚼,⚧,🚻,🚮,🎦,📶,🈁,🔣,ℹ️,🔤,🔡,🔠,🆖,🆗,🆙,🆒,🆕,🆓,0️⃣,1️⃣,2️⃣,3️⃣,4️⃣,5️⃣,6️⃣,7️⃣,8️⃣,9️⃣,🔟,🔢,▶️,⏸,⏯,⏹,⏺,⏭,⏮,⏩,⏪,🔀,🔁,🔂,◀️,🔼,🔽,⏫,⏬,➡️,⬅️,⬆️,⬇️,↗️,↘️,↙️,↖️,↕️,↔️,↪️,↩️,⤴️,⤵️,🔀,🔁,🔂,🔄,🔃,🎵,🎶,➕,➖,➗,✖️,♾,💲,💱,™️,©️,®️,〰️,➰,➿,🔚,🔙,🔛,🔝,🔜,✔️,☑️,🔘,🔴,🟠,🟡,🟢,🔵,🟣,⚫️,⚪️,🟤,🔺,🔻,🔸,🔹,🔶,🔷,🔳,🔲,▪️,▫️,◾️,◽️,◼️,◻️,⬛️,⬜️,🟥,🟧,🟨,🟩,🟦,🟪,⬛️,⬜️,🟫,🔈,🔇,🔉,🔊,🔔,🔕,📣,📢,👁‍🗨,💬,💭,🗯,♠️,♣️,♥️,♦️,🃏,🎴,🀄️,🕐,🕑,🕒,🕓,🕔,🕕,🕖,🕗,🕘,🕙,🕚,🕛,🕜,🕝,🕞,🕟,🕠,🕡,🕢,🕣,🕤,🕥,🕦,🕧"
+
+    private lateinit var rvEmojis: RecyclerView
+    private var emojiAdapter: EmojiAdapter? = null
+
+    // RECEPTOR NINJA: Espera el texto del dictado de voz
+    private val voiceReceiver = object : android.content.BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            val text = intent?.getStringExtra("text")
+            if (!text.isNullOrEmpty()) {
+                currentInputConnection?.commitText("$text ", 1)
+            }
+        }
+    }
 
     private val deleteRunnable = object : Runnable {
         override fun run() {
@@ -109,7 +120,6 @@ class MiTecladoAnclado : InputMethodService() {
         clipboardManager = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
         clipboardManager.addPrimaryClipChangedListener(clipListener)
         audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
-        vibrator = getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
         
         learnedWords = DataManager.loadLearnedWords(this)
         
@@ -134,6 +144,14 @@ class MiTecladoAnclado : InputMethodService() {
                     learnedWords.addAll(baseWords)
                 }
             }
+        }
+
+        val filter = android.content.IntentFilter("com.brayan.tecladoanclado.VOICE_TEXT")
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(voiceReceiver, filter, Context.RECEIVER_EXPORTED)
+        } else {
+            @Suppress("UnspecifiedRegisterReceiverFlag")
+            registerReceiver(voiceReceiver, filter)
         }
     }
 
@@ -167,9 +185,17 @@ class MiTecladoAnclado : InputMethodService() {
         layoutClipboard = view.findViewById(R.id.layout_clipboard)
         layoutEmojis = view.findViewById(R.id.layout_emojis) 
 
-        btnMic1 = view.findViewById(R.id.btnMic1) // Botón de dictado desactivado por el usuario
+        btnMic1 = view.findViewById(R.id.btnMic1)
         btnQrTrigger = view.findViewById(R.id.btnQrTrigger)
         btnLangToggle = view.findViewById(R.id.btnLangToggle)
+
+        val btnTranslateSend = view.findViewById<Button>(R.id.btnTranslateSend)
+        btnLangToggle.setOnClickListener {
+            playClickFeedback(btnLangToggle)
+            isEsToEn = !isEsToEn
+            btnLangToggle.text = if (isEsToEn) "ES ➔ EN" else "EN ➔ ES"
+        }
+        btnTranslateSend.setOnClickListener { translateText(btnTranslateSend) }
 
         val btnClipboardEnter = view.findViewById<Button>(R.id.btnClipboardEnter)
         btnClipboardEnter?.setOnTouchListener { v, event ->
@@ -205,25 +231,15 @@ class MiTecladoAnclado : InputMethodService() {
         rvQuickRepliesKeyboard.layoutManager = LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
         rvQuickRepliesKeyboard.adapter = qrAdapter
 
-        // --- SISTEMA SUPREMO DE EMOJIS ---
+        // --- SISTEMA DEFINITIVO DE EMOJIS ---
         rvEmojis = view.findViewById(R.id.rv_emojis_keyboard)
         rvEmojis.layoutManager = GridLayoutManager(this, 8) 
         emojiAdapter = EmojiAdapter(emptyList()) { emoji ->
             playClickFeedback(null)
             currentInputConnection?.commitText(emoji, 1)
-            DataManager.addRecentEmoji(this, emoji) // Lo guarda en el relojito automáticamente
+            DataManager.addRecentEmoji(this, emoji) // Auto-guarda en recientes
         }
         rvEmojis.adapter = emojiAdapter
-
-        // BOTONES DE CATEGORÍAS DE EMOJIS
-        view.findViewById<Button>(R.id.btnCatRecent).setOnClickListener { loadEmojiCategory("RECENT") }
-        view.findViewById<Button>(R.id.btnCatSmileys).setOnClickListener { loadEmojiCategory("SMILEYS") }
-        view.findViewById<Button>(R.id.btnCatAnimals).setOnClickListener { loadEmojiCategory("ANIMALS") }
-        view.findViewById<Button>(R.id.btnCatFood).setOnClickListener { loadEmojiCategory("FOOD") }
-        view.findViewById<Button>(R.id.btnCatSports).setOnClickListener { loadEmojiCategory("SPORTS") }
-        view.findViewById<Button>(R.id.btnCatTravel).setOnClickListener { loadEmojiCategory("TRAVEL") }
-        view.findViewById<Button>(R.id.btnCatObjects).setOnClickListener { loadEmojiCategory("OBJECTS") }
-        view.findViewById<Button>(R.id.btnCatSymbols).setOnClickListener { loadEmojiCategory("SYMBOLS") }
 
         setKeyListeners(view as ViewGroup)
         return view
@@ -246,20 +262,26 @@ class MiTecladoAnclado : InputMethodService() {
         layoutTopBar.visibility = View.VISIBLE
     }
 
-    private fun loadEmojiCategory(category: String) {
-        playClickFeedback(null)
+    // --- CARGADOR DE CATEGORÍAS DE EMOJIS TIPO WHATSAPP ---
+    private fun loadEmojiCategory(category: String, button: Button?) {
+        if (button != null) playClickFeedback(button)
+        val tvCategory = layoutEmojis.findViewById<TextView>(R.id.tvEmojiCategory)
+        
         val listToLoad = when(category) {
-            "RECENT" -> DataManager.loadRecentEmojis(this).ifEmpty { emojisSmileys }
-            "SMILEYS" -> emojisSmileys
-            "ANIMALS" -> emojisAnimals
-            "FOOD" -> emojisFood
-            "SPORTS" -> emojisSports
-            "TRAVEL" -> emojisTravel
-            "OBJECTS" -> emojisObjects
-            "SYMBOLS" -> emojisSymbols
-            else -> emojisSmileys
+            "RECENT" -> { tvCategory.text = "Recientes"; DataManager.loadRecentEmojis(this).ifEmpty { emojisSmileys.split(",") } }
+            "SMILEYS" -> { tvCategory.text = "Emoticonos y personas"; emojisSmileys.split(",") }
+            "ANIMALS" -> { tvCategory.text = "Animales y naturaleza"; emojisAnimals.split(",") }
+            "FOOD" -> { tvCategory.text = "Alimentos y bebidas"; emojisFood.split(",") }
+            "SPORTS" -> { tvCategory.text = "Actividades"; emojisSports.split(",") }
+            "TRAVEL" -> { tvCategory.text = "Viajes y destinos"; emojisTravel.split(",") }
+            "OBJECTS" -> { tvCategory.text = "Objetos"; emojisObjects.split(",") }
+            "SYMBOLS" -> { tvCategory.text = "Símbolos"; emojisSymbols.split(",") }
+            else -> { tvCategory.text = "Emoticonos y personas"; emojisSmileys.split(",") }
         }
-        emojiAdapter?.updateData(listToLoad)
+        
+        emojiAdapter?.updateData(listToLoad as List<String>)
+        // Vuelve al inicio de la lista para no quedar abajo si la categoría anterior era muy larga
+        rvEmojis.scrollToPosition(0) 
     }
 
     private fun checkQuickReplyTrigger() {
@@ -282,6 +304,17 @@ class MiTecladoAnclado : InputMethodService() {
             }
         }
         rvQuickRepliesKeyboard.visibility = View.GONE
+    }
+
+    private fun startVoiceRecognition() {
+        playClickFeedback(btnMic1)
+        try {
+            val intent = Intent(this, Class.forName("com.brayan.tecladoanclado.VoiceActivity"))
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            startActivity(intent)
+        } catch (e: Exception) {
+            Toast.makeText(this, "Falla al iniciar micrófono", Toast.LENGTH_SHORT).show()
+        }
     }
 
     private fun playClickFeedback(v: View?) {
@@ -398,48 +431,6 @@ class MiTecladoAnclado : InputMethodService() {
         return str.replace("á", "a").replace("é", "e").replace("í", "i").replace("ó", "o").replace("ú", "u")
     }
 
-    private fun translateText(btnSend: Button) {
-        playClickFeedback(btnSend)
-        val ic = currentInputConnection ?: return
-        val textToTranslate = ic.getTextBeforeCursor(1000, 0)?.toString() ?: ""
-        if (textToTranslate.isNotBlank()) {
-            btnSend.text = "⏳..."
-            btnSend.isEnabled = false
-            thread {
-                try {
-                    val sl = if (isEsToEn) "es" else "en"
-                    val tl = if (isEsToEn) "en" else "es"
-                    val encodedText = URLEncoder.encode(textToTranslate, "UTF-8")
-                    val urlStr = "https://translate.googleapis.com/translate_a/single?client=gtx&sl=$sl&tl=$tl&dt=t&q=$encodedText"
-                    val conn = URL(urlStr).openConnection() as HttpURLConnection
-                    conn.requestMethod = "GET"
-                    conn.setRequestProperty("User-Agent", "Mozilla/5.0")
-                    conn.connectTimeout = 5000
-                    
-                    if (conn.responseCode == 200) {
-                        val response = conn.inputStream.bufferedReader().readText()
-                        val jsonArray = JSONArray(response)
-                        val translatedText = jsonArray.getJSONArray(0).getJSONArray(0).getString(0)
-                        mainHandler.post {
-                            ic.deleteSurroundingText(textToTranslate.length, 0)
-                            ic.commitText(translatedText, 1)
-                            btnSend.text = "✨ Traducir texto"
-                            btnSend.isEnabled = true
-                            layoutTranslatorBar.visibility = View.GONE
-                            layoutTopBar.visibility = View.VISIBLE
-                        }
-                    } else throw Exception()
-                } catch (e: Exception) {
-                    mainHandler.post {
-                        Toast.makeText(this@MiTecladoAnclado, "Error de red", Toast.LENGTH_SHORT).show()
-                        btnSend.text = "✨ Traducir texto"
-                        btnSend.isEnabled = true
-                    }
-                }
-            }
-        }
-    }
-
     override fun onUpdateSelection(oldSelStart: Int, oldSelEnd: Int, newSelStart: Int, newSelEnd: Int, candidatesStart: Int, candidatesEnd: Int) {
         super.onUpdateSelection(oldSelStart, oldSelEnd, newSelStart, newSelEnd, candidatesStart, candidatesEnd)
         updateAutoCaps(currentInputEditorInfo)
@@ -487,7 +478,14 @@ class MiTecladoAnclado : InputMethodService() {
                 
                 if (tag == "SUGGESTION") continue
                 
-                val isActionKey = tag in listOf("MIC", "OPEN_TRANSLATOR", "CLIPBOARD", "MODE_LETTERS", "CLEAR_CLIPBOARD", "OPEN_EMOJI", "MODE_SYM1", "MODE_SYM2", "MODE_NUMPAD", "CLOSE_TRANSLATOR", "LANG_TOGGLE", "TRANSLATE_SEND", "TYPE_TRIGGER")
+                // MAGIA: Aquí registramos los botones de las categorías para que NO escriban letras
+                val isActionKey = tag in listOf(
+                    "MIC", "OPEN_TRANSLATOR", "CLIPBOARD", "MODE_LETTERS", "CLEAR_CLIPBOARD", 
+                    "OPEN_EMOJI", "MODE_SYM1", "MODE_SYM2", "MODE_NUMPAD", "CLOSE_TRANSLATOR", 
+                    "LANG_TOGGLE", "TRANSLATE_SEND", "TYPE_TRIGGER",
+                    "CAT_RECENT", "CAT_SMILEYS", "CAT_ANIMALS", "CAT_FOOD", "CAT_SPORTS", 
+                    "CAT_TRAVEL", "CAT_OBJECTS", "CAT_SYMBOLS"
+                )
                 
                 if (isActionKey) {
                     child.setOnTouchListener { v, event ->
@@ -605,10 +603,7 @@ class MiTecladoAnclado : InputMethodService() {
                 mainHandler.postDelayed({ checkQuickReplyTrigger() }, 10)
             }
             "CLEAR_CLIPBOARD" -> clearUnpinned()
-            "MIC" -> {
-                // Función de voz deshabilitada por el usuario
-                Toast.makeText(this, "Dictado de voz pausado temporalmente", Toast.LENGTH_SHORT).show()
-            }
+            "MIC" -> startVoiceRecognition()
             "SHIFT" -> {
                 val now = System.currentTimeMillis()
                 if (now - lastShiftTime < 400) setShiftState(2) else setShiftState(if (shiftState == 0) 1 else 0)
@@ -618,7 +613,7 @@ class MiTecladoAnclado : InputMethodService() {
             "CLOSE_TRANSLATOR" -> { layoutTranslatorBar.visibility = View.GONE; layoutTopBar.visibility = View.VISIBLE }
             "OPEN_EMOJI" -> {
                 switchLayout(layoutEmojis)
-                loadEmojiCategory("RECENT") // Carga tus recientes por defecto al abrirlo
+                loadEmojiCategory("RECENT", null) // Al abrir Emojis, carga los recientes directamente
             }
             "CLIPBOARD" -> { checkSystemClipboard(); switchLayout(layoutClipboard) }
             "MODE_LETTERS" -> switchLayout(layoutLetters)
@@ -628,9 +623,18 @@ class MiTecladoAnclado : InputMethodService() {
             "LANG_TOGGLE" -> {
                 playClickFeedback(button)
                 isEsToEn = !isEsToEn
-                btnLangToggle.text = if (isEsToEn) "ES ➔ EN" else "EN ➔ ES"
+                btnLangToggle?.text = if (isEsToEn) "ES ➔ EN" else "EN ➔ ES"
             }
-            "TRANSLATE_SEND" -> translateText(button)
+            
+            // --- CONEXIÓN DE LOS BOTONES DE CATEGORÍAS ---
+            "CAT_RECENT" -> loadEmojiCategory("RECENT", button)
+            "CAT_SMILEYS" -> loadEmojiCategory("SMILEYS", button)
+            "CAT_ANIMALS" -> loadEmojiCategory("ANIMALS", button)
+            "CAT_FOOD" -> loadEmojiCategory("FOOD", button)
+            "CAT_SPORTS" -> loadEmojiCategory("SPORTS", button)
+            "CAT_TRAVEL" -> loadEmojiCategory("TRAVEL", button)
+            "CAT_OBJECTS" -> loadEmojiCategory("OBJECTS", button)
+            "CAT_SYMBOLS" -> loadEmojiCategory("SYMBOLS", button)
         }
     }
 
@@ -689,6 +693,7 @@ class MiTecladoAnclado : InputMethodService() {
     override fun onDestroy() {
         super.onDestroy()
         clipboardManager.removePrimaryClipChangedListener(clipListener) 
+        try { unregisterReceiver(voiceReceiver) } catch (e: Exception) {}
     }
 
     inner class EmojiAdapter(private var emojiList: List<String>, private val onEmojiClick: (String) -> Unit) : RecyclerView.Adapter<EmojiAdapter.EmojiViewHolder>() {
