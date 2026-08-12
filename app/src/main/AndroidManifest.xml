@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.brayan.tecladoanclado">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <!-- PERMISOS -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.INTERNET" />
 
+    <!-- Esto ayuda a que el celular encuentre el micrófono de Google en Android 11+ -->
     <queries>
         <intent>
             <action android:name="android.speech.RecognitionService" />
@@ -29,9 +29,12 @@
             </intent-filter>
         </activity>
 
+        <!-- EL PASAPORTE DEL NINJA (VoiceActivity) -->
         <activity 
             android:name=".VoiceActivity" 
-            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+            android:theme="@android:style/Theme.Translucent.NoTitleBar"
+            android:excludeFromRecents="true"
+            android:exported="false" />
 
         <service
             android:name=".MiTecladoAnclado"
