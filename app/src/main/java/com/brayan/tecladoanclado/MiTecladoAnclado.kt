@@ -2,6 +2,7 @@ package com.brayan.tecladoanclado
 
 import android.Manifest
 import android.content.ClipboardManager
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -63,9 +64,7 @@ class MiTecladoAnclado : InputMethodService() {
     private var shiftState = 0
     private var lastShiftTime = 0L
     
-    // Respuestas Rápidas
-    private var isQrMode = false
-    private var qrSearchQuery = ""
+    // Respuestas Rápidas (MODO INLINE WHATSAPP)
     private var allQrItems = mutableListOf<QuickReplyItem>()
     private lateinit var qrAdapter: QuickReplyKeyboardAdapter
     private var qrTriggerChar = "["
@@ -74,8 +73,6 @@ class MiTecladoAnclado : InputMethodService() {
     private lateinit var layoutTopBar: View
     private lateinit var layoutSuggestionsBar: View
     private lateinit var layoutTranslatorBar: View
-    private lateinit var layoutQrSearchBar: View
-    private lateinit var tvQrSearch: TextView
     private lateinit var rvQuickRepliesKeyboard: RecyclerView
     
     private lateinit var btnSuggest1: Button
@@ -96,19 +93,12 @@ class MiTecladoAnclado : InputMethodService() {
 
     private val deleteRunnable = object : Runnable {
         override fun run() {
-            if (isQrMode) {
-                if (qrSearchQuery.isNotEmpty()) {
-                    qrSearchQuery = qrSearchQuery.dropLast(1)
-                    updateQrSearchUI()
-                } else closeQrMode()
-            } else {
-                currentInputConnection?.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DEL))
-                currentInputConnection?.sendKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_DEL))
-                mainHandler.postDelayed({ 
-                    updateSuggestionsUI() 
-                    checkQuickReplyTrigger()
-                }, 10)
-            }
+            currentInputConnection?.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DEL))
+            currentInputConnection?.sendKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_DEL))
+            mainHandler.postDelayed({ 
+                updateSuggestionsUI() 
+                checkQuickReplyTrigger()
+            }, 10)
             mainHandler.postDelayed(this, 50) 
         }
     }
@@ -126,6 +116,7 @@ class MiTecladoAnclado : InputMethodService() {
         
         learnedWords = DataManager.loadLearnedWords(this)
         
+        // MOTOR GBOARD: DESCARGA AUTOMÁTICA DEL DICCIONARIO SUPREMO
         backgroundExecutor.execute {
             if (learnedWords.size < 5000) {
                 mainHandler.post { Toast.makeText(this@MiTecladoAnclado, "Descargando Diccionario (80k palabras)...", Toast.LENGTH_SHORT).show() }
@@ -159,8 +150,6 @@ class MiTecladoAnclado : InputMethodService() {
         layoutSuggestionsBar = view.findViewById(R.id.layout_suggestions_bar)
         layoutTranslatorBar = view.findViewById(R.id.layout_translator_bar)
         rvQuickRepliesKeyboard = view.findViewById(R.id.rv_quick_replies_keyboard)
-        layoutQrSearchBar = view.findViewById(R.id.layout_qr_search_bar)
-        tvQrSearch = view.findViewById(R.id.tvQrSearch)
         
         btnSuggest1 = view.findViewById(R.id.btnSuggest1)
         btnSuggest2 = view.findViewById(R.id.btnSuggest2)
@@ -211,6 +200,7 @@ class MiTecladoAnclado : InputMethodService() {
         rvClipboard.layoutManager = GridLayoutManager(this, 3) 
         rvClipboard.adapter = adapter
 
+        // ADAPTADOR RESPUESTAS RÁPIDAS MODO WHATSAPP
         allQrItems = DataManager.loadQuickReplies(this)
         qrAdapter = QuickReplyKeyboardAdapter(allQrItems) { selectedItem ->
             playClickFeedback(null)
@@ -235,6 +225,7 @@ class MiTecladoAnclado : InputMethodService() {
             currentInputConnection?.commitText(emoji, 1)
         }
 
+        setupSpeechRecognizer()
         setKeyListeners(view as ViewGroup)
         return view
     }
@@ -280,7 +271,6 @@ class MiTecladoAnclado : InputMethodService() {
         rvQuickRepliesKeyboard.visibility = View.GONE
     }
 
-    // --- DICTADO POR VOZ BLINDADO CONTRA VIVO Y ANDROID 12+ ---
     private fun startVoiceRecognition() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             Toast.makeText(this, "⚠️ Otorga permiso de micrófono en Ajustes", Toast.LENGTH_LONG).show()
@@ -289,10 +279,8 @@ class MiTecladoAnclado : InputMethodService() {
 
         mainHandler.post {
             try {
-                // Destruye instancias previas congeladas
                 speechRecognizer?.destroy()
                 
-                // Inicialización limpia
                 speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this)
                 
                 speechRecognizer?.setRecognitionListener(object : RecognitionListener {
@@ -303,19 +291,6 @@ class MiTecladoAnclado : InputMethodService() {
                     override fun onEndOfSpeech() { btnMic1?.text = "⏳" }
                     override fun onError(error: Int) { 
                         btnMic1?.text = "🎤"
-                        val errorMsg = when(error) {
-                            SpeechRecognizer.ERROR_AUDIO -> "Error de audio"
-                            SpeechRecognizer.ERROR_CLIENT -> "Google canceló la petición"
-                            SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> "Sin permisos de micrófono"
-                            SpeechRecognizer.ERROR_NETWORK -> "Falla de red"
-                            SpeechRecognizer.ERROR_NETWORK_TIMEOUT -> "Red lenta"
-                            SpeechRecognizer.ERROR_NO_MATCH -> "No te entendí"
-                            SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> "Micrófono trabado"
-                            SpeechRecognizer.ERROR_SERVER -> "Error de Google"
-                            SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "No hablaste"
-                            else -> "Error: $error"
-                        }
-                        Toast.makeText(this@MiTecladoAnclado, errorMsg, Toast.LENGTH_SHORT).show()
                         speechRecognizer?.destroy()
                     }
                     override fun onResults(results: Bundle?) {
@@ -333,7 +308,6 @@ class MiTecladoAnclado : InputMethodService() {
                 val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
                     putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
                     putExtra(RecognizerIntent.EXTRA_LANGUAGE, "es-HN")
-                    // LA MAGIA QUE EVITA QUE TE RECHACE INSTANTÁNEAMENTE:
                     putExtra(RecognizerIntent.EXTRA_CALLING_PACKAGE, packageName)
                     putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
                 }
@@ -562,19 +536,12 @@ class MiTecladoAnclado : InputMethodService() {
                         when (event.actionMasked) {
                             MotionEvent.ACTION_DOWN, MotionEvent.ACTION_POINTER_DOWN -> {
                                 playClickFeedback(v)
-                                if (isQrMode) {
-                                    if (qrSearchQuery.isNotEmpty()) {
-                                        qrSearchQuery = qrSearchQuery.dropLast(1)
-                                        updateQrSearchUI()
-                                    } else closeQrMode()
-                                } else {
-                                    currentInputConnection?.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DEL))
-                                    currentInputConnection?.sendKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_DEL))
-                                    mainHandler.postDelayed({ 
-                                        updateSuggestionsUI()
-                                        checkQuickReplyTrigger()
-                                    }, 10)
-                                }
+                                currentInputConnection?.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DEL))
+                                currentInputConnection?.sendKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_DEL))
+                                mainHandler.postDelayed({ 
+                                    updateSuggestionsUI()
+                                    checkQuickReplyTrigger()
+                                }, 10)
                                 mainHandler.postDelayed(deleteRunnable, 400) 
                             }
                             MotionEvent.ACTION_UP, MotionEvent.ACTION_POINTER_UP, MotionEvent.ACTION_CANCEL -> {
@@ -744,10 +711,6 @@ class MiTecladoAnclado : InputMethodService() {
         adapter.updateData(pinnedOnly)
         Toast.makeText(this, "Borrados", Toast.LENGTH_SHORT).show()
     }
-
-    private fun openQrMode() { } // Función obsoleta eliminada visualmente
-    private fun closeQrMode() { }
-    private fun updateQrSearchUI() { }
 
     override fun onDestroy() {
         super.onDestroy()
