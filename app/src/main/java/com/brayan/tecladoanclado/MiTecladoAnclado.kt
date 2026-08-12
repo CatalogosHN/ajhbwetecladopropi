@@ -43,7 +43,7 @@ class MiTecladoAnclado : InputMethodService() {
     private val mainHandler = Handler(Looper.getMainLooper())
     
     private lateinit var audioManager: AudioManager
-    private lateinit var vibrator: Vibrator // <-- ¡AQUÍ ESTÁ EL ARREGLO!
+    private lateinit var vibrator: Vibrator
     private var soundEnabled = true
     private var soundEnterEnabled = true
     private var vibrationEnabled = false
@@ -57,6 +57,14 @@ class MiTecladoAnclado : InputMethodService() {
     private var allQrItems = mutableListOf<QuickReplyItem>()
     private lateinit var qrAdapter: QuickReplyKeyboardAdapter
     private var qrTriggerChar = "["
+    
+    // --- NUEVO: BÚSQUEDA DE EMOJIS ---
+    private var isEmojiSearchMode = false
+    private var emojiSearchQuery = ""
+    private lateinit var layoutEmojiSearchBar: View
+    private lateinit var tvEmojiSearch: TextView
+    private lateinit var rvEmojiSearchResults: RecyclerView
+    private var searchEmojiAdapter: EmojiAdapter? = null
     
     private lateinit var layoutTopBar: View
     private lateinit var layoutSuggestionsBar: View
@@ -79,7 +87,6 @@ class MiTecladoAnclado : InputMethodService() {
     private lateinit var btnLangToggle: Button
     private var isEsToEn = true
 
-    // --- LISTAS DE EMOJIS DE WHATSAPP ---
     private val emojisSmileys = "😀,😃,😄,😁,😆,😅,😂,🤣,🥲,☺️,😊,😇,🙂,🙃,😉,😌,😍,🥰,😘,😗,😙,😚,😋,😛,😝,😜,🤪,🤨,🧐,🤓,😎,🥸,🤩,🥳,😏,😒,😞,😔,😟,😕,🙁,☹️,😣,😖,😫,😩,🥺,😢,😭,😤,😠,😡,🤬,🤯,😳,🥵,🥶,😱,😨,😰,😥,😓,🫣,🤭,🫢,🫡,🤔,🤫,🤥,😶,😐,😑,😬,🙄,😯,😦,😧,😮,😲,🥱,😴,🤤,😪,😮‍💨,😵,😵‍💫,🤐,🥴,🤢,🤮,🤧,😷,🤒,🤕,🤑,🤠,😈,👿,👹,👺,🤡,💩,👻,💀,👽,👾,🤖,🎃,🫶,🤲,👐,🙌,👏,🤝,👍,👎,👊,✊,🤛,🤜,🤞,✌️,🫰,🤟,🤘,👌,🤌,🤏,🫳,🫴,👈,👉,👆,👇,☝️,✋,🤚,🖐,🖖,👋,🤙,💪,🦾,🖕,✍️,🙏,🦶,🦵,🦿,💄,💋,👄,🦷,👅,👂,🦻,👃,👣,👁,👀,🫀,🫁,🧠,🗣,👤,👥,🫂,👶,👧,🧒,👦,👩,🧑,👨,👩‍🦱,🧑‍🦱,👨‍🦱,👩‍🦰,🧑‍🦰,👨‍🦰,👱‍♀️,👱,👱‍♂️,👩‍🦳,🧑‍🦳,👨‍🦳,👩‍🦲,🧑‍🦲,👨‍🦲,🧔‍♀️,🧔,🧔‍♂️,👵,🧓,👴,👲,👳‍♀️,👳,👳‍♂️,🧕,👮‍♀️,👮,👮‍♂️,👷‍♀️,👷,👷‍♂️,💂‍♀️,💂,💂‍♂️,🕵️‍♀️,🕵️,🕵️‍♂️,👩‍⚕️,🧑‍⚕️,👨‍⚕️,👩‍🌾,🧑‍🌾,👨‍🌾,👩‍🍳,🧑‍🍳,👨‍🍳,👩‍🎓,🧑‍🎓,👨‍🎓,👩‍🎤,🧑‍🎤,👨‍🎤,👩‍🏫,🧑‍🏫,👨‍🏫,👩‍🏭,🧑‍🏭,👨‍🏭,👩‍💻,🧑‍💻,👨‍💻,👩‍💼,🧑‍💼,👨‍💼,👩‍🔧,🧑‍🔧,👨‍🔧,👩‍🔬,🧑‍🔬,👨‍🔬,👩‍🎨,🧑‍🎨,👨‍🎨,👩‍🚒,🧑‍🚒,👨‍🚒,👩‍✈️,🧑‍✈️,👨‍✈️,👩‍🚀,🧑‍🚀,👨‍🚀,👩‍⚖️,🧑‍⚖️,👨‍⚖️,👰‍♀️,👰,👰‍♂️,🤵‍♀️,🤵,🤵‍♂️,👸,🤴,🥷,🦸‍♀️,🦸,🦸‍♂️,🦹‍♀️,🦹,🦹‍♂️,🤶,🧑‍🎄,🎅,🧙‍♀️,🧙,🧙‍♂️,🧝‍♀️,🧝,🧝‍♂️,🧛‍♀️,🧛,🧛‍♂️,🧟‍♀️,🧟,🧟‍♂️,🧞‍♀️,🧞,🧞‍♂️,🧜‍♀️,🧜,🧜‍♂️,🧚‍♀️,🧚,🧚‍♂️,👼,🤰,🫄,🫃,🤱,👩‍🍼,🧑‍🍼,👨‍🍼,🙇‍♀️,🙇,🙇‍♂️,💁‍♀️,💁,💁‍♂️,🙅‍♀️,🙅,🙅‍♂️,🙆‍♀️,🙆,🙆‍♂️,🙋‍♀️,🙋,🙋‍♂️,🧏‍♀️,🧏,🧏‍♂️,🤦‍♀️,🤦,🤦‍♂️,🤷‍♀️,🤷,🤷‍♂️,🙎‍♀️,🙎,🙎‍♂️,🙍‍♀️,🙍,🙍‍♂️,💇‍♀️,💇,💇‍♂️,💆‍♀️,💆,💆‍♂️,🧖‍♀️,🧖,🧖‍♂️,💅,🤳,💃,🕺,👯‍♀️,👯,👯‍♂️,🕴,👩‍🦽,🧑‍🦽,👨‍🦽,👩‍🦼,🧑‍🦼,👨‍🦼,🚶‍♀️,🚶,🚶‍♂️,👩‍🦯,🧑‍🦯,👨‍🦯,🧎‍♀️,🧎,🧎‍♂️,🏃‍♀️,🏃,🏃‍♂️,🧍‍♀️,🧍,🧍‍♂️,👫,👭,👬,👩‍❤️‍👨,👩‍❤️‍👩,💑,👨‍❤️‍👨,👩‍❤️‍💋‍👨,👩‍❤️‍💋‍👩,💏,👨‍❤️‍💋‍👨,👨‍👩‍👦,👨‍👩‍👧,👨‍👩‍👧‍👦,👨‍👩‍👦‍👦,👨‍👩‍👧‍👧,👩‍👩‍👦,👩‍👩‍👧,👩‍👩‍👧‍👦,👩‍👩‍👦‍👦,👩‍👩‍👧‍👧,👨‍👨‍👦,👨‍👨‍👧,👨‍👨‍👧‍👦,👨‍👨‍👦‍👦,👨‍👨‍👧‍👧,👩‍👦,👩‍👧,👩‍👧‍👦,👩‍👦‍👦,👩‍👧‍👧,👨‍👦,👨‍👧,👨‍👧‍👦,👨‍👦‍👦,👨‍👧‍👧"
     private val emojisAnimals = "🐶,🐱,🐭,🐹,🐰,🦊,🐻,🐼,🐻‍❄️,🐨,🐯,🦁,🐮,🐷,🐽,🐸,🐵,🙈,🙉,🙊,🐒,🐔,🐧,🐦,🐤,🐣,🐥,🦆,🦅,🦉,🦇,🐺,🐗,🐴,🦄,🐝,🪱,🐛,🦋,🐌,🐞,🐜,🪰,🪲,🪳,🦟,🦗,🕷,🕸,🦂,🐢,🐍,🦎,🦖,🦕,🐙,🦑,🦐,🦞,🦀,🐡,🐠,🐟,🐬,🐳,🐋,🦈,🦭,🐊,🐅,🐆,🦓,🦍,🦧,🦣,🐘,🦛,🦏,🐪,🐫,🦒,🦘,🦬,🐃,🐂,🐄,🐎,🐖,🐏,🐑,🦙,🐐,🦌,🐕,🐩,🦮,🐕‍🦺,🐈,🐈‍⬛,🪶,🐓,🦃,🦤,🦚,🦜,🦢,🦩,🕊,🐇,🦝,🦨,🦡,🦫,🦦,🦥,🐁,🐀,🐿,🦔,🐾,🐉,🐲,🌵,🎄,🌲,🌳,🌴,🪵,🌱,🌿,☘️,🍀,🎍,🪴,🎋,🍃,🍂,🍁,🍄,🐚,🪨,🌾,💐,🌷,🌹,🥀,🌺,🌸,🌼,🌻,🌞,🌝,🌛,🌜,🌚,🌕,🌖,🌗,🌘,🌑,🌒,🌓,🌔,🌙,🌎,🌍,🌏,🪐,💫,⭐️,🌟,✨,⚡️,☄️,💥,🔥,🌪,🌈,☀️,🌤,⛅️,🌥,☁️,🌦,🌧,⛈,🌩,🌨,❄️,☃️,⛄️,🌬,💨,💧,💦,☔️,☂️,🌊,🌫"
     private val emojisFood = "🍏,🍎,🍐,🍊,🍋,🍌,🍉,🍇,🍓,🍈,🍒,🍑,🥭,🍍,🥥,🥝,🍅,🍆,🥑,🥦,🥬,🥒,🌶,🫑,🌽,🥕,🫒,🧄,🧅,🥔,🍠,🥐,🥯,🍞,🥖,🥨,🧀,🥚,🍳,🧈,🥞,🧇,🥓,🥩,🍗,🍖,🦴,🌭,🍔,🍟,🍕,🫓,🥪,🥙,🧆,🫔,🌮,🌯,🫢,🥗,🥘,🫕,🥫,🍝,🍜,🍲,🍛,🍣,🍱,🥟,🦪,🍤,🍙,🍚,🍘,🍥,🥠,🥮,🍢,🍡,🍧,🍨,🍦,🥧,🧁,🍰,🎂,🍮,🍭,🍬,🍫,🍿,🍩,🍪,🌰,🥜,🍯,🥛,🍼,🫖,☕️,🍵,🧃,🥤,🧋,🍶,🍺,🍻,🥂,🍷,🥃,🍸,🍹,🧉,🍾,🧊,🥄,🍴,🍽,🥣,🥡,🥢,🧂"
@@ -88,17 +95,33 @@ class MiTecladoAnclado : InputMethodService() {
     private val emojisObjects = "⌚️,📱,📲,💻,⌨️,🖥,🖨,🖱,🖲,🕹,🗜,💽,💾,💿,📀,📼,📷,📸,📹,🎥,📽,🎞,📞,☎️,📟,📠,📺,📻,🎙,🎚,🎛,🧭,⏱,⏲,⏰,🕰,⌛️,⏳,📡,🔋,🔌,💡,🔦,🕯,🪔,🧯,🛢,💸,💵,💴,💶,💷,🪙,💰,💳,💎,⚖️,🪜,🧰,🪛,🔧,🔨,⚒,🛠,⛏,🪚,🔩,⚙️,🪤,🧱,⛓,🧲,🔫,💣,🧨,🪓,🔪,🗡,⚔️,🛡,🚬,⚰️,🪦,⚱️,🏺,🔮,📿,🧿,💈,⚗️,🔭,🔬,🕳,🩹,🩺,💊,💉,🩸,🧬,🦠,🧫,🧪,🌡,🧹,🪠,🧺,🧻,🪣,🧼,🪥,🧽,🧯,🛒"
     private val emojisSymbols = "❤️,🧡,💛,💚,💙,💜,🖤,🤍,🤎,💔,❣️,💕,💞,💓,💗,💖,💘,💝,❤️‍🔥,❤️‍🩹,☮️,✝️,☪️,🕉,☸️,✡️,🔯,🕎,☯️,☦️,🛐,⛎,♈️,♉️,♊️,♋️,♌️,♍️,♎️,♏️,♐️,♑️,♒️,♓️,🆔,⚛️,🉑,☢️,☣️,📴,📳,🈶,🈚️,🈸,🈺,🈷️,✴️,🆚,💮,🉐,㊙️,㊗️,🈴,🈵,🈹,🈲,🅰️,🅱️,🆎,🆑,🅾️,🆘,❌,⭕️,🛑,⛔️,📛,🚫,💯,💢,♨️,🚷,🚯,🚳,🚱,🔞,📵,🚭,❗️,❕,❓,❔,‼️,⁉️,🔅,🔆,〽️,⚠️,🚸,🔱,⚜️,🔰,♻️,✅,🈯️,💹,❇️,✳️,❎,🌐,💠,Ⓜ️,🌀,💤,🏧,🚾,♿️,🅿️,🛗,🈳,🈂️,🛂,🛃,🛄,🛅,🚹,🚺,🚼,⚧,🚻,🚮,🎦,📶,🈁,🔣,ℹ️,🔤,🔡,🔠,🆖,🆗,🆙,🆒,🆕,🆓,0️⃣,1️⃣,2️⃣,3️⃣,4️⃣,5️⃣,6️⃣,7️⃣,8️⃣,9️⃣,🔟,🔢,▶️,⏸,⏯,⏹,⏺,⏭,⏮,⏩,⏪,🔀,🔁,🔂,◀️,🔼,🔽,⏫,⏬,➡️,⬅️,⬆️,⬇️,↗️,↘️,↙️,↖️,↕️,↔️,↪️,↩️,⤴️,⤵️,🔀,🔁,🔂,🔄,🔃,🎵,🎶,➕,➖,➗,✖️,♾,💲,💱,™️,©️,®️,〰️,➰,➿,🔚,🔙,🔛,🔝,🔜,✔️,☑️,🔘,🔴,🟠,🟡,🟢,🔵,🟣,⚫️,⚪️,🟤,🔺,🔻,🔸,🔹,🔶,🔷,🔳,🔲,▪️,▫️,◾️,◽️,◼️,◻️,⬛️,⬜️,🟥,🟧,🟨,🟩,🟦,🟪,⬛️,⬜️,🟫,🔈,🔇,🔉,🔊,🔔,🔕,📣,📢,👁‍🗨,💬,💭,🗯,♠️,♣️,♥️,♦️,🃏,🎴,🀄️,🕐,🕑,🕒,🕓,🕔,🕕,🕖,🕗,🕘,🕙,🕚,🕛,🕜,🕝,🕞,🕟,🕠,🕡,🕢,🕣,🕤,🕥,🕦,🕧"
 
-    // LA LISTA MAESTRA (Todos fusionados para el scroll infinito)
     private val masterEmojiList by lazy {
         emojisSmileys.split(",") + emojisAnimals.split(",") + emojisFood.split(",") + 
         emojisSports.split(",") + emojisTravel.split(",") + emojisObjects.split(",") + 
         emojisSymbols.split(",")
     }
 
+    // MINI-DICCIONARIO DE EMOJIS PARA EL BUSCADOR
+    private val emojiDictionary = mapOf(
+        "feliz" to listOf("😀","😃","😄","😁","😊","☺️","🥰","🥳"),
+        "triste" to listOf("😢","😭","😞","😔","☹️","💔"),
+        "amor" to listOf("❤️","😍","🥰","😘","💕","💘","💝"),
+        "risa" to listOf("😂","🤣","😹","😆"),
+        "sorpresa" to listOf("😱","😲","😳","😮","🤯"),
+        "enojado" to listOf("😠","😡","🤬","😤"),
+        "animal" to emojisAnimals.split(",").take(15),
+        "comida" to emojisFood.split(",").take(15),
+        "carro" to listOf("🚗","🚕","🚙","🚌","🏎"),
+        "deporte" to emojisSports.split(",").take(10),
+        "fuego" to listOf("🔥","💥","☄️"),
+        "dinero" to listOf("💸","💵","💰","💳"),
+        "ok" to listOf("👍","👌","✅","✔️"),
+        "no" to listOf("👎","❌","🚫","🙅‍♂️")
+    )
+
     private lateinit var rvEmojis: RecyclerView
     private var emojiAdapter: EmojiAdapter? = null
 
-    // RECEPTOR NINJA: Espera el texto del dictado de voz
     private val voiceReceiver = object : android.content.BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             val text = intent?.getStringExtra("text")
@@ -171,6 +194,12 @@ class MiTecladoAnclado : InputMethodService() {
         layoutTopBar = view.findViewById(R.id.layout_top_bar)
         layoutSuggestionsBar = view.findViewById(R.id.layout_suggestions_bar)
         layoutTranslatorBar = view.findViewById(R.id.layout_translator_bar)
+        
+        // Elementos del buscador de emojis
+        layoutEmojiSearchBar = view.findViewById(R.id.layout_emoji_search_bar)
+        tvEmojiSearch = view.findViewById(R.id.tvEmojiSearch)
+        rvEmojiSearchResults = view.findViewById(R.id.rv_emoji_search_results)
+        
         rvQuickRepliesKeyboard = view.findViewById(R.id.rv_quick_replies_keyboard)
         
         btnSuggest1 = view.findViewById(R.id.btnSuggest1)
@@ -251,6 +280,16 @@ class MiTecladoAnclado : InputMethodService() {
         }
         rvEmojis.adapter = emojiAdapter
 
+        // --- ADAPTADOR DEL BUSCADOR DE EMOJIS ---
+        rvEmojiSearchResults.layoutManager = LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
+        searchEmojiAdapter = EmojiAdapter(emptyList()) { emoji ->
+            playClickFeedback(null)
+            currentInputConnection?.commitText(emoji, 1)
+            DataManager.addRecentEmoji(this, emoji)
+            closeEmojiSearchMode() // Cierra al elegir
+        }
+        rvEmojiSearchResults.adapter = searchEmojiAdapter
+
         setKeyListeners(view as ViewGroup)
         return view
     }
@@ -266,10 +305,60 @@ class MiTecladoAnclado : InputMethodService() {
         btnQrTrigger?.text = qrTriggerChar
         
         rvQuickRepliesKeyboard.visibility = View.GONE
+        isEmojiSearchMode = false
+        layoutEmojiSearchBar.visibility = View.GONE
+        rvEmojiSearchResults.visibility = View.GONE
+        
         checkSystemClipboard()
         updateAutoCaps(info)
         layoutSuggestionsBar.visibility = View.GONE
         layoutTopBar.visibility = View.VISIBLE
+    }
+
+    // --- MAGIA DEL BUSCADOR DE EMOJIS ---
+    private fun openEmojiSearchMode() {
+        isEmojiSearchMode = true
+        emojiSearchQuery = ""
+        layoutTopBar.visibility = View.GONE
+        layoutSuggestionsBar.visibility = View.GONE
+        layoutTranslatorBar.visibility = View.GONE
+        layoutEmojiSearchBar.visibility = View.VISIBLE
+        rvEmojiSearchResults.visibility = View.VISIBLE
+        switchLayout(layoutLetters) // Vuelve a las letras para escribir
+        updateEmojiSearchUI()
+    }
+
+    private fun closeEmojiSearchMode() {
+        isEmojiSearchMode = false
+        layoutEmojiSearchBar.visibility = View.GONE
+        rvEmojiSearchResults.visibility = View.GONE
+        layoutTopBar.visibility = View.VISIBLE
+        switchLayout(layoutEmojis) // Regresa al menú de emojis
+    }
+
+    private fun updateEmojiSearchUI() {
+        tvEmojiSearch.text = "🔍: $emojiSearchQuery"
+        
+        if (emojiSearchQuery.isBlank()) {
+            searchEmojiAdapter?.updateData(DataManager.loadRecentEmojis(this))
+        } else {
+            val query = emojiSearchQuery.lowercase()
+            val results = mutableListOf<String>()
+            
+            // Busca en el mini-diccionario
+            for ((key, emojis) in emojiDictionary) {
+                if (key.contains(query)) {
+                    results.addAll(emojis)
+                }
+            }
+            
+            if (results.isEmpty()) {
+                // Muestra caritas si no encuentra nada
+                searchEmojiAdapter?.updateData(emojisSmileys.split(",").take(15))
+            } else {
+                searchEmojiAdapter?.updateData(results.distinct())
+            }
+        }
     }
 
     // --- EL CEREBRO DE LAS CATEGORÍAS TIPO WHATSAPP ---
@@ -306,6 +395,7 @@ class MiTecladoAnclado : InputMethodService() {
     }
 
     private fun checkQuickReplyTrigger() {
+        if (isEmojiSearchMode) return // Evita cruces
         val ic = currentInputConnection ?: return
         val textBefore = ic.getTextBeforeCursor(50, 0)?.toString() ?: ""
         
@@ -387,7 +477,7 @@ class MiTecladoAnclado : InputMethodService() {
     }
 
     private fun updateSuggestionsUI() {
-        if (!autocorrectEnabled) return
+        if (!autocorrectEnabled || isEmojiSearchMode) return
         val currentWord = getCurrentWord()
         
         if (currentWord.length >= 2) {
@@ -452,7 +542,6 @@ class MiTecladoAnclado : InputMethodService() {
         return str.replace("á", "a").replace("é", "e").replace("í", "i").replace("ó", "o").replace("ú", "u")
     }
 
-    // AQUÍ DEVOLVEMOS LA FUNCIÓN PERDIDA DE TRADUCIR
     private fun translateText(btnSend: Button) {
         playClickFeedback(btnSend)
         val ic = currentInputConnection ?: return
@@ -495,12 +584,13 @@ class MiTecladoAnclado : InputMethodService() {
         }
     }
 
-    // --- ESTO ELIMINA EL LAG DEL ESPACIO AL SUGERIR PALABRAS ---
     override fun onUpdateSelection(oldSelStart: Int, oldSelEnd: Int, newSelStart: Int, newSelEnd: Int, candidatesStart: Int, candidatesEnd: Int) {
         super.onUpdateSelection(oldSelStart, oldSelEnd, newSelStart, newSelEnd, candidatesStart, candidatesEnd)
         updateAutoCaps(currentInputEditorInfo)
-        updateSuggestionsUI() // Ahora es instantáneo al detectar que escribiste un espacio
-        checkQuickReplyTrigger() 
+        if (!isEmojiSearchMode) {
+            updateSuggestionsUI() 
+            checkQuickReplyTrigger() 
+        }
     }
 
     private fun updateAutoCaps(info: EditorInfo?) {
@@ -547,9 +637,10 @@ class MiTecladoAnclado : InputMethodService() {
                 val isActionKey = tag in listOf(
                     "MIC", "OPEN_TRANSLATOR", "CLIPBOARD", "MODE_LETTERS", "CLEAR_CLIPBOARD", 
                     "OPEN_EMOJI", "MODE_SYM1", "MODE_SYM2", "MODE_NUMPAD", "CLOSE_TRANSLATOR", 
-                    "LANG_TOGGLE", "TRANSLATE_SEND", "TYPE_TRIGGER",
+                    "LANG_TOGGLE", "TRANSLATE_SEND", "TYPE_TRIGGER", "CAT_SEARCH",
                     "CAT_RECENT", "CAT_SMILEYS", "CAT_ANIMALS", "CAT_FOOD", "CAT_SPORTS", 
-                    "CAT_TRAVEL", "CAT_OBJECTS", "CAT_SYMBOLS"
+                    "CAT_TRAVEL", "CAT_OBJECTS", "CAT_SYMBOLS",
+                    "CLEAR_EMOJI_SEARCH", "CLOSE_EMOJI_SEARCH"
                 )
                 
                 if (isActionKey) {
@@ -567,12 +658,20 @@ class MiTecladoAnclado : InputMethodService() {
                         when (event.actionMasked) {
                             MotionEvent.ACTION_DOWN, MotionEvent.ACTION_POINTER_DOWN -> {
                                 playClickFeedback(v)
-                                currentInputConnection?.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DEL))
-                                currentInputConnection?.sendKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_DEL))
-                                mainHandler.postDelayed({ 
-                                    updateSuggestionsUI()
-                                    checkQuickReplyTrigger()
-                                }, 10)
+                                
+                                if (isEmojiSearchMode) {
+                                    if (emojiSearchQuery.isNotEmpty()) {
+                                        emojiSearchQuery = emojiSearchQuery.dropLast(1)
+                                        updateEmojiSearchUI()
+                                    } else closeEmojiSearchMode()
+                                } else {
+                                    currentInputConnection?.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DEL))
+                                    currentInputConnection?.sendKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_DEL))
+                                    mainHandler.postDelayed({ 
+                                        updateSuggestionsUI()
+                                        checkQuickReplyTrigger()
+                                    }, 10)
+                                }
                                 mainHandler.postDelayed(deleteRunnable, 400) 
                             }
                             MotionEvent.ACTION_UP, MotionEvent.ACTION_POINTER_UP, MotionEvent.ACTION_CANCEL -> {
@@ -592,6 +691,20 @@ class MiTecladoAnclado : InputMethodService() {
                         MotionEvent.ACTION_DOWN, MotionEvent.ACTION_POINTER_DOWN -> {
                             isLongPress = false
                             playClickFeedback(v)
+
+                            // --- INTERCEPTA LAS LETRAS SI ESTAMOS BUSCANDO EMOJIS ---
+                            if (isEmojiSearchMode) {
+                                if (tag == null || tag.matches(Regex("\\d"))) {
+                                    emojiSearchQuery += child.text.toString().lowercase()
+                                    updateEmojiSearchUI()
+                                    return@setOnTouchListener true
+                                }
+                                if (tag == "SPACE") {
+                                    emojiSearchQuery += " "
+                                    updateEmojiSearchUI()
+                                    return@setOnTouchListener true
+                                }
+                            }
 
                             if (tag == null || tag.matches(Regex("\\d"))) {
                                 val textToInsert = child.text.toString()
@@ -613,15 +726,17 @@ class MiTecladoAnclado : InputMethodService() {
                                     isLongPress = true
                                     if (vibrationEnabled) v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP, HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING)
                                     
-                                    currentInputConnection?.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DEL))
-                                    currentInputConnection?.sendKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_DEL))
-                                    
-                                    val textToInsert = if (shiftState > 0) accentedChar.uppercase() else accentedChar
-                                    currentInputConnection?.commitText(textToInsert, 1)
-                                    mainHandler.postDelayed({ 
-                                        updateSuggestionsUI()
-                                        checkQuickReplyTrigger()
-                                    }, 10)
+                                    if (!isEmojiSearchMode) {
+                                        currentInputConnection?.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DEL))
+                                        currentInputConnection?.sendKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_DEL))
+                                        
+                                        val textToInsert = if (shiftState > 0) accentedChar.uppercase() else accentedChar
+                                        currentInputConnection?.commitText(textToInsert, 1)
+                                        mainHandler.postDelayed({ 
+                                            updateSuggestionsUI()
+                                            checkQuickReplyTrigger()
+                                        }, 10)
+                                    }
                                 }
                                 mainHandler.postDelayed(longPressRunnable!!, 350)
                             }
@@ -639,7 +754,6 @@ class MiTecladoAnclado : InputMethodService() {
     private fun handleKeyPress(button: Button) {
         val tag = button.tag as? String
 
-        // --- ACCIONES DE UI INMORTALES (Funcionan siempre) ---
         when (tag) {
             "CAT_RECENT" -> { loadEmojiCategory("RECENT", button); return }
             "CAT_SMILEYS" -> { loadEmojiCategory("SMILEYS", button); return }
@@ -649,6 +763,10 @@ class MiTecladoAnclado : InputMethodService() {
             "CAT_TRAVEL" -> { loadEmojiCategory("TRAVEL", button); return }
             "CAT_OBJECTS" -> { loadEmojiCategory("OBJECTS", button); return }
             "CAT_SYMBOLS" -> { loadEmojiCategory("SYMBOLS", button); return }
+            
+            "CAT_SEARCH" -> { playClickFeedback(button); openEmojiSearchMode(); return }
+            "CLEAR_EMOJI_SEARCH" -> { playClickFeedback(button); emojiSearchQuery = ""; updateEmojiSearchUI(); return }
+            "CLOSE_EMOJI_SEARCH" -> { playClickFeedback(button); closeEmojiSearchMode(); return }
             
             "MODE_LETTERS" -> { switchLayout(layoutLetters); return }
             "OPEN_EMOJI" -> { switchLayout(layoutEmojis); loadEmojiCategory("RECENT", null); return }
@@ -668,7 +786,6 @@ class MiTecladoAnclado : InputMethodService() {
             }
         }
 
-        // --- ACCIONES DE ESCRITURA (Requieren input connection) ---
         val ic = currentInputConnection ?: return
 
         when (tag) {
