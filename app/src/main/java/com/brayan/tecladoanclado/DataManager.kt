@@ -18,11 +18,23 @@ object DataManager {
     private const val KEY_AUTOCORRECT = "key_autocorrect"
     private const val KEY_LEARNED_WORDS = "key_learned_words"
     private const val KEY_QR_TRIGGER = "key_qr_trigger"
-    private const val KEY_RECENT_EMOJIS = "key_recent_emojis" // EL RELOJITO DE EMOJIS
+    private const val KEY_RECENT_EMOJIS = "key_recent_emojis" 
+    
+    // NUEVOS: Dictado y Pegar Imágenes
+    private const val KEY_PENDING_VOICE = "key_pending_voice"
+    private const val KEY_IMAGE_PASTE = "key_image_paste"
 
     private fun getPrefs(context: Context): SharedPreferences {
         return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     }
+
+    // --- MEMORIA INMORTAL DEL DICTADO ---
+    fun getPendingVoiceText(context: Context): String = getPrefs(context).getString(KEY_PENDING_VOICE, "") ?: ""
+    fun setPendingVoiceText(context: Context, text: String) = getPrefs(context).edit().putString(KEY_PENDING_VOICE, text).apply()
+
+    // --- ACTIVADOR DE PEGAR IMÁGENES ---
+    fun isImagePasteEnabled(context: Context): Boolean = getPrefs(context).getBoolean(KEY_IMAGE_PASTE, true)
+    fun setImagePasteEnabled(context: Context, enabled: Boolean) = getPrefs(context).edit().putBoolean(KEY_IMAGE_PASTE, enabled).apply()
 
     fun saveItems(context: Context, items: List<ClipboardItem>) {
         getPrefs(context).edit().putString(KEY_ITEMS, Gson().toJson(items)).apply()
@@ -51,20 +63,15 @@ object DataManager {
 
     fun isSoundEnabled(context: Context): Boolean = getPrefs(context).getBoolean(KEY_SOUND, true)
     fun setSoundEnabled(context: Context, enabled: Boolean) = getPrefs(context).edit().putBoolean(KEY_SOUND, enabled).apply()
-
     fun isSoundEnterEnabled(context: Context): Boolean = getPrefs(context).getBoolean(KEY_SOUND_ENTER, true)
     fun setSoundEnterEnabled(context: Context, enabled: Boolean) = getPrefs(context).edit().putBoolean(KEY_SOUND_ENTER, enabled).apply()
-
     fun isVibrationEnabled(context: Context): Boolean = getPrefs(context).getBoolean(KEY_VIBE, false)
     fun setVibrationEnabled(context: Context, enabled: Boolean) = getPrefs(context).edit().putBoolean(KEY_VIBE, enabled).apply()
-
     fun isAutocorrectEnabled(context: Context): Boolean = getPrefs(context).getBoolean(KEY_AUTOCORRECT, true)
     fun setAutocorrectEnabled(context: Context, enabled: Boolean) = getPrefs(context).edit().putBoolean(KEY_AUTOCORRECT, enabled).apply()
-
     fun getQrTrigger(context: Context): String = getPrefs(context).getString(KEY_QR_TRIGGER, "[") ?: "["
     fun setQrTrigger(context: Context, trigger: String) = getPrefs(context).edit().putString(KEY_QR_TRIGGER, trigger).apply()
 
-    // --- MAGIA DE EMOJIS RECIENTES ---
     fun loadRecentEmojis(context: Context): MutableList<String> {
         val json = getPrefs(context).getString(KEY_RECENT_EMOJIS, null) ?: return mutableListOf()
         val type = object : TypeToken<MutableList<String>>() {}.type
