@@ -149,6 +149,15 @@
             android:layout_height="wrap_content" 
             android:text="📳 Vibración de Teclas" 
             android:textColor="#FFFFFF" />
+
+        <Switch
+            android:id="@+id/switchImagePaste"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Pegar Imágenes y GIFs"
+            android:textColor="#FFFFFF"
+            android:padding="12dp" />
+        
     </LinearLayout>
 
     <!-- CONFIGURACIÓN DE TECLA RÁPIDA -->
