@@ -32,7 +32,7 @@
             <Button android:tag="CLOSE_TRANSLATOR" android:text="❌" style="@style/KeyStyleAction" android:layout_width="wrap_content" android:layout_height="match_parent" android:paddingStart="12dp" android:paddingEnd="12dp" />
         </LinearLayout>
 
-        <!-- NUEVA: BARRA DE BÚSQUEDA DE EMOJIS -->
+        <!-- BARRA DE BÚSQUEDA DE EMOJIS -->
         <LinearLayout android:id="@+id/layout_emoji_search_bar" android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="horizontal" android:visibility="gone" android:padding="2dp">
             <TextView android:id="@+id/tvEmojiSearch" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:text="🔍: " android:gravity="center_vertical" android:textStyle="bold" android:paddingStart="12dp" android:textColor="#000000"/>
             <Button android:tag="CLEAR_EMOJI_SEARCH" android:text="⌫" style="@style/KeyStyleAction" android:layout_width="wrap_content" android:layout_height="match_parent" android:padding="8dp"/>
@@ -43,7 +43,7 @@
     <!-- RESULTADOS DE BÚSQUEDA RÁPIDA -->
     <androidx.recyclerview.widget.RecyclerView android:id="@+id/rv_quick_replies_keyboard" android:layout_width="match_parent" android:layout_height="160dp" android:visibility="gone" android:background="#1E1E1E" android:padding="4dp" />
 
-    <!-- NUEVO: RESULTADOS DE BÚSQUEDA DE EMOJIS (Cinta horizontal) -->
+    <!-- RESULTADOS DE BÚSQUEDA DE EMOJIS -->
     <androidx.recyclerview.widget.RecyclerView android:id="@+id/rv_emoji_search_results" android:layout_width="match_parent" android:layout_height="55dp" android:visibility="gone" android:background="#2C2C2C" android:padding="4dp" />
 
     <FrameLayout android:layout_width="match_parent" android:layout_height="wrap_content">
@@ -250,11 +250,9 @@
 
             <androidx.recyclerview.widget.RecyclerView android:id="@+id/rv_emojis_keyboard" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:padding="4dp" />
 
-            <!-- BARRA INFERIOR DE EMOJIS (CON LUPA INYECTADA) -->
             <LinearLayout android:layout_width="match_parent" android:layout_height="45dp" android:orientation="horizontal" android:background="#2C2C2C" android:padding="2dp">
                 <Button android:tag="MODE_LETTERS" android:text="ABC" style="@style/KeyStyleAction" android:layout_width="50dp" android:layout_height="match_parent" android:backgroundTint="#3A3A3A" android:textSize="12sp" android:layout_marginEnd="2dp"/>
                 
-                <!-- BOTÓN DE BÚSQUEDA DE EMOJIS -->
                 <Button android:tag="CAT_SEARCH" android:text="🔍" style="@style/KeyStyleAction" android:layout_weight="1" android:backgroundTint="#2C2C2C" android:textSize="18sp" />
                 
                 <Button android:tag="CAT_RECENT" android:text="🕒" style="@style/KeyStyleAction" android:layout_weight="1" android:backgroundTint="#2C2C2C" android:textSize="18sp" />
