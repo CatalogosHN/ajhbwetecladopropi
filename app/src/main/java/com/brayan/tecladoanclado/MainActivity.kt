@@ -75,6 +75,12 @@ class MainActivity : AppCompatActivity() {
         val switchVibration = findViewById<Switch>(R.id.switchVibration)
 
         val switchAutocorrect = findViewById<Switch>(R.id.switchAutocorrect)
+
+        val switchImagePaste = findViewById<Switch>(R.id.switchImagePaste)
+        switchImagePaste.isChecked = DataManager.isImagePasteEnabled(this)
+        switchImagePaste.setOnCheckedChangeListener { _, isChecked ->
+            DataManager.setImagePasteEnabled(this, isChecked)
+        }
         
         switchSound.isChecked = DataManager.isSoundEnabled(this)
         switchSoundEnter.isChecked = DataManager.isSoundEnterEnabled(this)
