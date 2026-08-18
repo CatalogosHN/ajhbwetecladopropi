@@ -3,7 +3,6 @@ package com.brayan.tecladoanclado
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.graphics.Color
 import android.graphics.Typeface
 import android.inputmethodservice.InputMethodService
@@ -21,7 +20,6 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.view.inputmethod.EditorInfo
-import android.view.inputmethod.InputMethodManager
 import android.widget.Button
 import android.widget.FrameLayout
 import android.widget.LinearLayout
@@ -40,7 +38,6 @@ class MiTecladoAnclado : InputMethodService() {
     private lateinit var adapter: PinnedAdapter
     private lateinit var clipboardManager: ClipboardManager
     
-    // NÚCLEOS SEPARADOS PARA VELOCIDAD GBOARD
     private val backgroundExecutor = java.util.concurrent.Executors.newSingleThreadExecutor()
     private val mainHandler = Handler(Looper.getMainLooper())
     
@@ -50,6 +47,7 @@ class MiTecladoAnclado : InputMethodService() {
     private var soundEnterEnabled = true
     private var vibrationEnabled = false
     private var autocorrectEnabled = true
+    private var imagePasteEnabled = true // Para futuras actualizaciones de imágenes
     
     private var learnedWords = mutableSetOf<String>()
     private var currentBestSuggestion = ""
@@ -60,7 +58,7 @@ class MiTecladoAnclado : InputMethodService() {
     private lateinit var qrAdapter: QuickReplyKeyboardAdapter
     private var qrTriggerChar = "["
     
-    // BÚSQUEDA DE EMOJIS
+    // --- BÚSQUEDA DE EMOJIS ---
     private var isEmojiSearchMode = false
     private var emojiSearchQuery = ""
     private lateinit var layoutEmojiSearchBar: View
@@ -299,9 +297,18 @@ class MiTecladoAnclado : InputMethodService() {
         soundEnterEnabled = DataManager.isSoundEnterEnabled(this)
         vibrationEnabled = DataManager.isVibrationEnabled(this)
         autocorrectEnabled = DataManager.isAutocorrectEnabled(this)
+        imagePasteEnabled = DataManager.isImagePasteEnabled(this) // Cargamos la configuración del interruptor
         allQrItems = DataManager.loadQuickReplies(this)
         qrTriggerChar = DataManager.getQrTrigger(this)
         btnQrTrigger?.text = qrTriggerChar
+
+        // ¡EL TRUCO DE LA MEMORIA DEL DICTADO!
+        // Si regresamos de hablarle al micrófono de Google, escribe el texto al instante
+        val pendingVoice = DataManager.getPendingVoiceText(this)
+        if (pendingVoice.isNotEmpty()) {
+            currentInputConnection?.commitText(pendingVoice, 1)
+            DataManager.setPendingVoiceText(this, "") // Limpia la memoria
+        }
         
         rvQuickRepliesKeyboard.visibility = View.GONE
         isEmojiSearchMode = false
@@ -410,42 +417,16 @@ class MiTecladoAnclado : InputMethodService() {
         rvQuickRepliesKeyboard.visibility = View.GONE
     }
 
-    // --- LA VERDADERA MAGIA DEL DICTADO (NATIVO GBOARD STYLE) ---
+    // --- EL LLAMADO AL NINJA (MICRÓFONO) ---
     private fun startVoiceRecognition() {
         playClickFeedback(btnMic1)
         try {
-            // Ordenamos a Android que cambie al Teclado Oficial de Voz de Google.
-            val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
-            var voiceImeId: String? = null
-            
-            // Buscar motor de Google Voice
-            for (ime in imm.enabledInputMethodList) {
-                if (ime.packageName == "com.google.android.googlequicksearchbox" && ime.id.contains("VoiceInputMethodService", ignoreCase = true)) {
-                    voiceImeId = ime.id
-                    break
-                }
-            }
-            
-            // Fallback genérico si no se llama igual
-            if (voiceImeId == null) {
-                for (ime in imm.enabledInputMethodList) {
-                    if (ime.id.contains("voice", ignoreCase = true) || ime.id.contains("speech", ignoreCase = true)) {
-                        voiceImeId = ime.id
-                        break
-                    }
-                }
-            }
-
-            if (voiceImeId != null) {
-                switchInputMethod(voiceImeId)
-            } else {
-                Toast.makeText(this, "Teclado de Voz de Google no encontrado. Instala la app de Google.", Toast.LENGTH_LONG).show()
-                val intent = Intent(android.provider.Settings.ACTION_INPUT_METHOD_SETTINGS)
-                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                startActivity(intent)
-            }
+            // Llama a la actividad transparente y espera a que regrese el texto
+            val intent = Intent(this, VoiceActivity::class.java)
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            startActivity(intent)
         } catch (e: Exception) {
-            Toast.makeText(this, "Error al invocar el dictado", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Asegúrate de agregar VoiceActivity al AndroidManifest", Toast.LENGTH_LONG).show()
         }
     }
 
@@ -497,7 +478,6 @@ class MiTecladoAnclado : InputMethodService() {
         return textBefore.takeLastWhile { it.isLetter() || it == 'ñ' || it == 'Ñ' || it == 'á' || it == 'é' || it == 'í' || it == 'ó' || it == 'ú' }
     }
 
-    // --- CEREBRO ASÍNCRONO DE SUGERENCIAS (VELOCIDAD GBOARD) ---
     private fun updateSuggestionsUI() {
         if (!autocorrectEnabled || isEmojiSearchMode) return
         val currentWord = getCurrentWord()
@@ -506,7 +486,6 @@ class MiTecladoAnclado : InputMethodService() {
             val lowerWord = currentWord.lowercase()
             val cleanLower = removeAccents(lowerWord)
 
-            // Buscar en segundo plano para no trabar el teclado
             backgroundExecutor.execute {
                 var matches = learnedWords.asSequence()
                     .filter { removeAccents(it).startsWith(cleanLower) && it != lowerWord }
@@ -717,7 +696,6 @@ class MiTecladoAnclado : InputMethodService() {
                             isLongPress = false
                             playClickFeedback(v)
 
-                            // --- LATENCIA CERO AL ESCRIBIR ---
                             if (isEmojiSearchMode) {
                                 if (tag == null || tag.matches(Regex("\\d"))) {
                                     emojiSearchQuery += child.text.toString().lowercase()
