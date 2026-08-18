@@ -1,8 +1,10 @@
 package com.brayan.tecladoanclado
 
+import android.Manifest
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.graphics.Color
 import android.graphics.Typeface
 import android.inputmethodservice.InputMethodService
@@ -20,11 +22,13 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.view.inputmethod.EditorInfo
+import android.view.inputmethod.InputMethodManager
 import android.widget.Button
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
+import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -47,7 +51,6 @@ class MiTecladoAnclado : InputMethodService() {
     private var soundEnterEnabled = true
     private var vibrationEnabled = false
     private var autocorrectEnabled = true
-    private var imagePasteEnabled = true // Para futuras actualizaciones de imágenes
     
     private var learnedWords = mutableSetOf<String>()
     private var currentBestSuggestion = ""
@@ -297,18 +300,9 @@ class MiTecladoAnclado : InputMethodService() {
         soundEnterEnabled = DataManager.isSoundEnterEnabled(this)
         vibrationEnabled = DataManager.isVibrationEnabled(this)
         autocorrectEnabled = DataManager.isAutocorrectEnabled(this)
-        imagePasteEnabled = DataManager.isImagePasteEnabled(this) // Cargamos la configuración del interruptor
         allQrItems = DataManager.loadQuickReplies(this)
         qrTriggerChar = DataManager.getQrTrigger(this)
         btnQrTrigger?.text = qrTriggerChar
-
-        // ¡EL TRUCO DE LA MEMORIA DEL DICTADO!
-        // Si regresamos de hablarle al micrófono de Google, escribe el texto al instante
-        val pendingVoice = DataManager.getPendingVoiceText(this)
-        if (pendingVoice.isNotEmpty()) {
-            currentInputConnection?.commitText(pendingVoice, 1)
-            DataManager.setPendingVoiceText(this, "") // Limpia la memoria
-        }
         
         rvQuickRepliesKeyboard.visibility = View.GONE
         isEmojiSearchMode = false
@@ -417,16 +411,37 @@ class MiTecladoAnclado : InputMethodService() {
         rvQuickRepliesKeyboard.visibility = View.GONE
     }
 
-    // --- EL LLAMADO AL NINJA (MICRÓFONO) ---
+    // --- EL TRUCO GBOARD PARA EL MICRÓFONO EN VIVO ---
     private fun startVoiceRecognition() {
         playClickFeedback(btnMic1)
         try {
-            // Llama a la actividad transparente y espera a que regrese el texto
-            val intent = Intent(this, VoiceActivity::class.java)
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            startActivity(intent)
+            val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+            var voiceImeId: String? = null
+            
+            for (ime in imm.enabledInputMethodList) {
+                if (ime.packageName == "com.google.android.googlequicksearchbox" && ime.id.contains("VoiceInputMethodService", ignoreCase = true)) {
+                    voiceImeId = ime.id
+                    break
+                }
+            }
+            
+            if (voiceImeId == null) {
+                for (ime in imm.enabledInputMethodList) {
+                    if (ime.id.contains("voice", ignoreCase = true) || ime.id.contains("speech", ignoreCase = true)) {
+                        voiceImeId = ime.id
+                        break
+                    }
+                }
+            }
+
+            if (voiceImeId != null) {
+                // Obliga a Android a usar el teclado de Google. Es imparable.
+                switchInputMethod(voiceImeId)
+            } else {
+                Toast.makeText(this, "Habilita Dictado de Google en Ajustes", Toast.LENGTH_LONG).show()
+            }
         } catch (e: Exception) {
-            Toast.makeText(this, "Asegúrate de agregar VoiceActivity al AndroidManifest", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, "Error al invocar dictado", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -641,7 +656,7 @@ class MiTecladoAnclado : InputMethodService() {
                 if (tag == "SUGGESTION") continue
                 
                 val isActionKey = tag in listOf(
-                    "MIC", "OPEN_TRANSLATOR", "CLIPBOARD", "MODE_LETTERS", "CLEAR_CLIPBOARD", 
+                    "MIC", "OPEN_TRANSLATOR", "CLIPBOARD", "MODE_LETTERS", "CLEAR_CLIPBOARD", "SYSTEM_PASTE",
                     "OPEN_EMOJI", "MODE_SYM1", "MODE_SYM2", "MODE_NUMPAD", "CLOSE_TRANSLATOR", 
                     "LANG_TOGGLE", "TRANSLATE_SEND", "TYPE_TRIGGER", "CAT_SEARCH",
                     "CAT_RECENT", "CAT_SMILEYS", "CAT_ANIMALS", "CAT_FOOD", "CAT_SPORTS", 
@@ -772,7 +787,14 @@ class MiTecladoAnclado : InputMethodService() {
             "MODE_SYM1" -> { switchLayout(layoutSymbols1); return }
             "MODE_SYM2" -> { switchLayout(layoutSymbols2); return }
             "MODE_NUMPAD" -> { switchLayout(layoutNumpad); return }
+            
             "CLIPBOARD" -> { checkSystemClipboard(); switchLayout(layoutClipboard); return }
+            "SYSTEM_PASTE" -> { 
+                playClickFeedback(button)
+                currentInputConnection?.performContextMenuAction(android.R.id.paste)
+                switchLayout(layoutLetters)
+                return 
+            }
             
             "OPEN_TRANSLATOR" -> { layoutTopBar.visibility = View.GONE; layoutSuggestionsBar.visibility = View.GONE; layoutTranslatorBar.visibility = View.VISIBLE; return }
             "CLOSE_TRANSLATOR" -> { layoutTranslatorBar.visibility = View.GONE; layoutTopBar.visibility = View.VISIBLE; return }
