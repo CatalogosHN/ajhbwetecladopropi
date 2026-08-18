@@ -25,6 +25,7 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.view.inputmethod.EditorInfo
+import android.view.inputmethod.InputMethodManager
 import android.widget.Button
 import android.widget.FrameLayout
 import android.widget.LinearLayout
@@ -43,8 +44,8 @@ import kotlin.concurrent.thread
 class MiTecladoAnclado : InputMethodService() {
     private lateinit var adapter: PinnedAdapter
     private lateinit var clipboardManager: ClipboardManager
-    private var speechRecognizer: SpeechRecognizer? = null
     
+    // NÚCLEOS SEPARADOS PARA VELOCIDAD GBOARD
     private val backgroundExecutor = java.util.concurrent.Executors.newSingleThreadExecutor()
     private val mainHandler = Handler(Looper.getMainLooper())
     
@@ -93,6 +94,7 @@ class MiTecladoAnclado : InputMethodService() {
     private lateinit var btnLangToggle: Button
     private var isEsToEn = true
 
+    // LISTAS DE EMOJIS
     private val emojisSmileys = "😀,😃,😄,😁,😆,😅,😂,🤣,🥲,☺️,😊,😇,🙂,🙃,😉,😌,😍,🥰,😘,😗,😙,😚,😋,😛,😝,😜,🤪,🤨,🧐,🤓,😎,🥸,🤩,🥳,😏,😒,😞,😔,😟,😕,🙁,☹️,😣,😖,😫,😩,🥺,😢,😭,😤,😠,😡,🤬,🤯,😳,🥵,🥶,😱,😨,😰,😥,😓,🫣,🤭,🫢,🫡,🤔,🤫,🤥,😶,😐,😑,😬,🙄,😯,😦,😧,😮,😲,🥱,😴,🤤,😪,😮‍💨,😵,😵‍💫,🤐,🥴,🤢,🤮,🤧,😷,🤒,🤕,🤑,🤠,😈,👿,👹,👺,🤡,💩,👻,💀,👽,👾,🤖,🎃,🫶,🤲,👐,🙌,👏,🤝,👍,👎,👊,✊,🤛,🤜,🤞,✌️,🫰,🤟,🤘,👌,🤌,🤏,🫳,🫴,👈,👉,👆,👇,☝️,✋,🤚,🖐,🖖,👋,🤙,💪,🦾,🖕,✍️,🙏,🦶,🦵,🦿,💄,💋,👄,🦷,👅,👂,🦻,👃,👣,👁,👀,🫀,🫁,🧠,🗣,👤,👥,🫂,👶,👧,🧒,👦,👩,🧑,👨,👩‍🦱,🧑‍🦱,👨‍🦱,👩‍🦰,🧑‍🦰,👨‍🦰,👱‍♀️,👱,👱‍♂️,👩‍🦳,🧑‍🦳,👨‍🦳,👩‍🦲,🧑‍🦲,👨‍🦲,🧔‍♀️,🧔,🧔‍♂️,👵,🧓,👴,👲,👳‍♀️,👳,👳‍♂️,🧕,👮‍♀️,👮,👮‍♂️,👷‍♀️,👷,👷‍♂️,💂‍♀️,💂,💂‍♂️,🕵️‍♀️,🕵️,🕵️‍♂️,👩‍⚕️,🧑‍⚕️,👨‍⚕️,👩‍🌾,🧑‍🌾,👨‍🌾,👩‍🍳,🧑‍🍳,👨‍🍳,👩‍🎓,🧑‍🎓,👨‍🎓,👩‍🎤,🧑‍🎤,👨‍🎤,👩‍🏫,🧑‍🏫,👨‍🏫,👩‍🏭,🧑‍🏭,👨‍🏭,👩‍💻,🧑‍💻,👨‍💻,👩‍💼,🧑‍💼,👨‍💼,👩‍🔧,🧑‍🔧,👨‍🔧,👩‍🔬,🧑‍🔬,👨‍🔬,👩‍🎨,🧑‍🎨,👨‍🎨,👩‍🚒,🧑‍🚒,👨‍🚒,👩‍✈️,🧑‍✈️,👨‍✈️,👩‍🚀,🧑‍🚀,👨‍🚀,👩‍⚖️,🧑‍⚖️,👨‍⚖️,👰‍♀️,👰,👰‍♂️,🤵‍♀️,🤵,🤵‍♂️,👸,🤴,🥷,🦸‍♀️,🦸,🦸‍♂️,🦹‍♀️,🦹,🦹‍♂️,🤶,🧑‍🎄,🎅,🧙‍♀️,🧙,🧙‍♂️,🧝‍♀️,🧝,🧝‍♂️,🧛‍♀️,🧛,🧛‍♂️,🧟‍♀️,🧟,🧟‍♂️,🧞‍♀️,🧞,🧞‍♂️,🧜‍♀️,🧜,🧜‍♂️,🧚‍♀️,🧚,🧚‍♂️,👼,🤰,🫄,🫃,🤱,👩‍🍼,🧑‍🍼,👨‍🍼,🙇‍♀️,🙇,🙇‍♂️,💁‍♀️,💁,💁‍♂️,🙅‍♀️,🙅,🙅‍♂️,🙆‍♀️,🙆,🙆‍♂️,🙋‍♀️,🙋,🙋‍♂️,🧏‍♀️,🧏,🧏‍♂️,🤦‍♀️,🤦,🤦‍♂️,🤷‍♀️,🤷,🤷‍♂️,🙎‍♀️,🙎,🙎‍♂️,🙍‍♀️,🙍,🙍‍♂️,💇‍♀️,💇,💇‍♂️,💆‍♀️,💆,💆‍♂️,🧖‍♀️,🧖,🧖‍♂️,💅,🤳,💃,🕺,👯‍♀️,👯,👯‍♂️,🕴,👩‍🦽,🧑‍🦽,👨‍🦽,👩‍🦼,🧑‍🦼,👨‍🦼,🚶‍♀️,🚶,🚶‍♂️,👩‍🦯,🧑‍🦯,👨‍🦯,🧎‍♀️,🧎,🧎‍♂️,🏃‍♀️,🏃,🏃‍♂️,🧍‍♀️,🧍,🧍‍♂️,👫,👭,👬,👩‍❤️‍👨,👩‍❤️‍👩,💑,👨‍❤️‍👨,👩‍❤️‍💋‍👨,👩‍❤️‍💋‍👩,💏,👨‍❤️‍💋‍👨,👨‍👩‍👦,👨‍👩‍👧,👨‍👩‍👧‍👦,👨‍👩‍👦‍👦,👨‍👩‍👧‍👧,👩‍👩‍👦,👩‍👩‍👧,👩‍👩‍👧‍👦,👩‍👩‍👦‍👦,👩‍👩‍👧‍👧,👨‍👨‍👦,👨‍👨‍👧,👨‍👨‍👧‍👦,👨‍👨‍👦‍👦,👨‍👨‍👧‍👧,👩‍👦,👩‍👧,👩‍👧‍👦,👩‍👦‍👦,👩‍👧‍👧,👨‍👦,👨‍👧,👨‍👧‍👦,👨‍👦‍👦,👨‍👧‍👧"
     private val emojisAnimals = "🐶,🐱,🐭,🐹,🐰,🦊,🐻,🐼,🐻‍❄️,🐨,🐯,🦁,🐮,🐷,🐽,🐸,🐵,🙈,🙉,🙊,🐒,🐔,🐧,🐦,🐤,🐣,🐥,🦆,🦅,🦉,🦇,🐺,🐗,🐴,🦄,🐝,🪱,🐛,🦋,🐌,🐞,🐜,🪰,🪲,🪳,🦟,🦗,🕷,🕸,🦂,🐢,🐍,🦎,🦖,🦕,🐙,🦑,🦐,🦞,🦀,🐡,🐠,🐟,🐬,🐳,🐋,🦈,🦭,🐊,🐅,🐆,🦓,🦍,🦧,🦣,🐘,🦛,🦏,🐪,🐫,🦒,🦘,🦬,🐃,🐂,🐄,🐎,🐖,🐏,🐑,🦙,🐐,🦌,🐕,🐩,🦮,🐕‍🦺,🐈,🐈‍⬛,🪶,🐓,🦃,🦤,🦚,🦜,🦢,🦩,🕊,🐇,🦝,🦨,🦡,🦫,🦦,🦥,🐁,🐀,🐿,🦔,🐾,🐉,🐲,🌵,🎄,🌲,🌳,🌴,🪵,🌱,🌿,☘️,🍀,🎍,🪴,🎋,🍃,🍂,🍁,🍄,🐚,🪨,🌾,💐,🌷,🌹,🥀,🌺,🌸,🌼,🌻,🌞,🌝,🌛,🌜,🌚,🌕,🌖,🌗,🌘,🌑,🌒,🌓,🌔,🌙,🌎,🌍,🌏,🪐,💫,⭐️,🌟,✨,⚡️,☄️,💥,🔥,🌪,🌈,☀️,🌤,⛅️,🌥,☁️,🌦,🌧,⛈,🌩,🌨,❄️,☃️,⛄️,🌬,💨,💧,💦,☔️,☂️,🌊,🌫"
     private val emojisFood = "🍏,🍎,🍐,🍊,🍋,🍌,🍉,🍇,🍓,🍈,🍒,🍑,🥭,🍍,🥥,🥝,🍅,🍆,🥑,🥦,🥬,🥒,🌶,🫑,🌽,🥕,🫒,🧄,🧅,🥔,🍠,🥐,🥯,🍞,🥖,🥨,🧀,🥚,🍳,🧈,🥞,🧇,🥓,🥩,🍗,🍖,🦴,🌭,🍔,🍟,🍕,🫓,🥪,🥙,🧆,🫔,🌮,🌯,🫢,🥗,🥘,🫕,🥫,🍝,🍜,🍲,🍛,🍣,🍱,🥟,🦪,🍤,🍙,🍚,🍘,🍥,🥠,🥮,🍢,🍡,🍧,🍨,🍦,🥧,🧁,🍰,🎂,🍮,🍭,🍬,🍫,🍿,🍩,🍪,🌰,🥜,🍯,🥛,🍼,🫖,☕️,🍵,🧃,🥤,🧋,🍶,🍺,🍻,🥂,🍷,🥃,🍸,🍹,🧉,🍾,🧊,🥄,🍴,🍽,🥣,🥡,🥢,🧂"
@@ -107,7 +109,6 @@ class MiTecladoAnclado : InputMethodService() {
         emojisSymbols.split(",")
     }
 
-    // --- EL DICCIONARIO SUPREMO DE EMOJIS AMPLIADO ---
     private val emojiDictionary = mapOf(
         "feliz" to listOf("😀","😃","😄","😁","😊","☺️","🥰","🥳"),
         "triste" to listOf("😢","😭","😞","😔","☹️","💔"),
@@ -147,23 +148,12 @@ class MiTecladoAnclado : InputMethodService() {
     private lateinit var rvEmojis: RecyclerView
     private var emojiAdapter: EmojiAdapter? = null
 
-    private val voiceReceiver = object : android.content.BroadcastReceiver() {
-        override fun onReceive(context: Context?, intent: Intent?) {
-            val text = intent?.getStringExtra("text")
-            if (!text.isNullOrEmpty()) {
-                currentInputConnection?.commitText("$text ", 1)
-            }
-        }
-    }
-
     private val deleteRunnable = object : Runnable {
         override fun run() {
             currentInputConnection?.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DEL))
             currentInputConnection?.sendKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_DEL))
-            mainHandler.postDelayed({ 
-                updateSuggestionsUI() 
-                checkQuickReplyTrigger()
-            }, 10)
+            updateSuggestionsUI() 
+            checkQuickReplyTrigger()
             mainHandler.postDelayed(this, 50) 
         }
     }
@@ -183,7 +173,7 @@ class MiTecladoAnclado : InputMethodService() {
         
         backgroundExecutor.execute {
             if (learnedWords.size < 5000) {
-                mainHandler.post { Toast.makeText(this@MiTecladoAnclado, "Descargando Diccionario (80k palabras)...", Toast.LENGTH_SHORT).show() }
+                mainHandler.post { Toast.makeText(this@MiTecladoAnclado, "Descargando Diccionario (80k)...", Toast.LENGTH_SHORT).show() }
                 try {
                     val urlStr = "https://raw.githubusercontent.com/javierarce/palabras/master/listado-general.txt"
                     val conn = URL(urlStr).openConnection() as HttpURLConnection
@@ -202,14 +192,6 @@ class MiTecladoAnclado : InputMethodService() {
                     learnedWords.addAll(baseWords)
                 }
             }
-        }
-
-        val filter = android.content.IntentFilter("com.brayan.tecladoanclado.VOICE_TEXT")
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(voiceReceiver, filter, Context.RECEIVER_EXPORTED)
-        } else {
-            @Suppress("UnspecifiedRegisterReceiverFlag")
-            registerReceiver(voiceReceiver, filter)
         }
     }
 
@@ -433,52 +415,32 @@ class MiTecladoAnclado : InputMethodService() {
         rvQuickRepliesKeyboard.visibility = View.GONE
     }
 
-    // --- DICTADO DE VOZ PURO (RESTAURADO) ---
+    // --- LA VERDADERA MAGIA DEL DICTADO (NATIVO GBOARD STYLE) ---
     private fun startVoiceRecognition() {
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
-            Toast.makeText(this, "⚠️ Otorga permiso de micrófono en Ajustes de Android", Toast.LENGTH_LONG).show()
-            return
-        }
-        
-        mainHandler.post {
-            try {
-                speechRecognizer?.destroy()
-                
-                speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this)
-                
-                speechRecognizer?.setRecognitionListener(object : RecognitionListener {
-                    override fun onReadyForSpeech(params: Bundle?) { btnMic1?.text = "🔴" }
-                    override fun onBeginningOfSpeech() { btnMic1?.text = "🗣️" }
-                    override fun onRmsChanged(rmsdB: Float) {}
-                    override fun onBufferReceived(buffer: ByteArray?) {}
-                    override fun onEndOfSpeech() { btnMic1?.text = "⏳" }
-                    override fun onError(error: Int) { 
-                        btnMic1?.text = "🎤"
-                    }
-                    override fun onResults(results: Bundle?) {
-                        btnMic1?.text = "🎤"
-                        val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
-                        if (!matches.isNullOrEmpty()) {
-                            currentInputConnection?.commitText(matches[0] + " ", 1)
-                        }
-                    }
-                    override fun onPartialResults(partialResults: Bundle?) {}
-                    override fun onEvent(eventType: Int, params: Bundle?) {}
-                })
-
-                val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-                    putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-                    putExtra(RecognizerIntent.EXTRA_LANGUAGE, "es-HN")
-                    // Este atributo ayuda a Vivo a entender que el teclado es el dueño
-                    putExtra(RecognizerIntent.EXTRA_CALLING_PACKAGE, packageName)
+        playClickFeedback(btnMic1)
+        try {
+            // El truco definitivo de Gboard: Le ordenamos al sistema de Android que
+            // cambie temporalmente al Teclado de Voz oficial de Google. 
+            // FuntouchOS no puede bloquear esto porque es una orden del sistema operativo.
+            val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+            var voiceImeId: String? = null
+            
+            // Busca el ID exacto del motor de voz de Google en el celular
+            for (ime in imm.enabledInputMethodList) {
+                if (ime.id.contains("voice", ignoreCase = true) || ime.id.contains("speech", ignoreCase = true)) {
+                    voiceImeId = ime.id
+                    break
                 }
-                
-                speechRecognizer?.startListening(intent)
-
-            } catch (e: Exception) {
-                btnMic1?.text = "🎤"
-                Toast.makeText(this, "Error al cargar micrófono", Toast.LENGTH_SHORT).show()
             }
+
+            if (voiceImeId != null) {
+                // Ordena el cambio de teclado
+                switchInputMethod(voiceImeId)
+            } else {
+                Toast.makeText(this, "Teclado de voz de Google no encontrado en este dispositivo", Toast.LENGTH_LONG).show()
+            }
+        } catch (e: Exception) {
+            Toast.makeText(this, "Error al invocar el dictado nativo", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -530,6 +492,7 @@ class MiTecladoAnclado : InputMethodService() {
         return textBefore.takeLastWhile { it.isLetter() || it == 'ñ' || it == 'Ñ' || it == 'á' || it == 'é' || it == 'í' || it == 'ó' || it == 'ú' }
     }
 
+    // --- CEREBRO ASÍNCRONO DE SUGERENCIAS (VELOCIDAD GBOARD) ---
     private fun updateSuggestionsUI() {
         if (!autocorrectEnabled || isEmojiSearchMode) return
         val currentWord = getCurrentWord()
@@ -538,32 +501,38 @@ class MiTecladoAnclado : InputMethodService() {
             val lowerWord = currentWord.lowercase()
             val cleanLower = removeAccents(lowerWord)
 
-            var matches = learnedWords.asSequence()
-                .filter { removeAccents(it).startsWith(cleanLower) && it != lowerWord }
-                .take(2).toList()
-
-            if (matches.isEmpty() && currentWord.length >= 3) {
-                matches = learnedWords.asSequence()
-                    .filter { it.startsWith(cleanLower[0]) || it.startsWith('h') }
-                    .filter { Math.abs(it.length - cleanLower.length) <= 1 }
-                    .filter { levenshtein(cleanLower, removeAccents(it)) <= 1 }
+            // Envía la carga pesada (buscar en 80,000 palabras) al procesador secundario
+            backgroundExecutor.execute {
+                var matches = learnedWords.asSequence()
+                    .filter { removeAccents(it).startsWith(cleanLower) && it != lowerWord }
                     .take(2).toList()
-            }
 
-            btnSuggest1.text = currentWord
-            
-            if (matches.isNotEmpty()) {
-                currentBestSuggestion = matches[0]
-                if (currentWord[0].isUpperCase()) currentBestSuggestion = currentBestSuggestion.replaceFirstChar { it.uppercase() }
-                btnSuggest2.text = currentBestSuggestion
-                btnSuggest3.text = if (matches.size > 1) matches[1] else ""
-            } else {
-                currentBestSuggestion = ""
-                btnSuggest2.text = ""
-                btnSuggest3.text = ""
+                if (matches.isEmpty() && currentWord.length >= 3) {
+                    matches = learnedWords.asSequence()
+                        .filter { it.startsWith(cleanLower[0]) || it.startsWith('h') }
+                        .filter { Math.abs(it.length - cleanLower.length) <= 1 }
+                        .filter { levenshtein(cleanLower, removeAccents(it)) <= 1 }
+                        .take(2).toList()
+                }
+
+                // Devuelve los resultados a la pantalla al instante
+                mainHandler.post {
+                    btnSuggest1.text = currentWord
+                    if (matches.isNotEmpty()) {
+                        var best = matches[0]
+                        if (currentWord[0].isUpperCase()) best = best.replaceFirstChar { it.uppercase() }
+                        currentBestSuggestion = best
+                        btnSuggest2.text = best
+                        btnSuggest3.text = if (matches.size > 1) matches[1] else ""
+                    } else {
+                        currentBestSuggestion = ""
+                        btnSuggest2.text = ""
+                        btnSuggest3.text = ""
+                    }
+                    layoutTopBar.visibility = View.GONE
+                    layoutSuggestionsBar.visibility = View.VISIBLE
+                }
             }
-            layoutTopBar.visibility = View.GONE
-            layoutSuggestionsBar.visibility = View.VISIBLE
         } else {
             currentBestSuggestion = ""
             layoutSuggestionsBar.visibility = View.GONE
@@ -579,7 +548,7 @@ class MiTecladoAnclado : InputMethodService() {
             ic.commitText("$suggestion ", 1)
             learnWord(suggestion)
         }
-        mainHandler.postDelayed({ updateSuggestionsUI() }, 10)
+        updateSuggestionsUI()
     }
 
     private fun learnWord(word: String) {
@@ -721,10 +690,8 @@ class MiTecladoAnclado : InputMethodService() {
                                 } else {
                                     currentInputConnection?.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DEL))
                                     currentInputConnection?.sendKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_DEL))
-                                    mainHandler.postDelayed({ 
-                                        updateSuggestionsUI()
-                                        checkQuickReplyTrigger()
-                                    }, 10)
+                                    updateSuggestionsUI()
+                                    checkQuickReplyTrigger()
                                 }
                                 mainHandler.postDelayed(deleteRunnable, 400) 
                             }
@@ -746,6 +713,7 @@ class MiTecladoAnclado : InputMethodService() {
                             isLongPress = false
                             playClickFeedback(v)
 
+                            // --- LATENCIA CERO AL ESCRIBIR ---
                             if (isEmojiSearchMode) {
                                 if (tag == null || tag.matches(Regex("\\d"))) {
                                     emojiSearchQuery += child.text.toString().lowercase()
@@ -763,10 +731,8 @@ class MiTecladoAnclado : InputMethodService() {
                                 val textToInsert = child.text.toString()
                                 currentInputConnection?.commitText(textToInsert, 1)
                                 if (shiftState == 1) setShiftState(0)
-                                mainHandler.postDelayed({ 
-                                    updateSuggestionsUI()
-                                    checkQuickReplyTrigger()
-                                }, 10)
+                                updateSuggestionsUI()
+                                checkQuickReplyTrigger()
                             } else if (tag == "SPACE" || tag == "ENTER" || tag == "SHIFT") {
                                 handleKeyPress(child)
                             }
@@ -785,10 +751,8 @@ class MiTecladoAnclado : InputMethodService() {
                                         
                                         val textToInsert = if (shiftState > 0) accentedChar.uppercase() else accentedChar
                                         currentInputConnection?.commitText(textToInsert, 1)
-                                        mainHandler.postDelayed({ 
-                                            updateSuggestionsUI()
-                                            checkQuickReplyTrigger()
-                                        }, 10)
+                                        updateSuggestionsUI()
+                                        checkQuickReplyTrigger()
                                     }
                                 }
                                 mainHandler.postDelayed(longPressRunnable!!, 350)
@@ -858,15 +822,13 @@ class MiTecladoAnclado : InputMethodService() {
                     if (word.isNotEmpty()) learnWord(word)
                     ic.commitText(" ", 1)
                 }
-                mainHandler.postDelayed({ 
-                    updateSuggestionsUI() 
-                    checkQuickReplyTrigger()
-                }, 10)
+                updateSuggestionsUI() 
+                checkQuickReplyTrigger()
             }
             "TYPE_TRIGGER" -> {
                 playClickFeedback(button)
                 ic.commitText(qrTriggerChar, 1)
-                mainHandler.postDelayed({ checkQuickReplyTrigger() }, 10)
+                checkQuickReplyTrigger()
             }
             "CLEAR_CLIPBOARD" -> clearUnpinned()
             "SHIFT" -> {
@@ -933,7 +895,6 @@ class MiTecladoAnclado : InputMethodService() {
     override fun onDestroy() {
         super.onDestroy()
         clipboardManager.removePrimaryClipChangedListener(clipListener) 
-        try { unregisterReceiver(voiceReceiver) } catch (e: Exception) {}
     }
 
     inner class EmojiAdapter(private var emojiList: List<String>, private val onEmojiClick: (String) -> Unit) : RecyclerView.Adapter<EmojiAdapter.EmojiViewHolder>() {
