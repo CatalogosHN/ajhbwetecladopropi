@@ -230,12 +230,16 @@
             </LinearLayout>
         </LinearLayout>
 
-        <!-- PORTAPAPELES -->
+        <!-- PORTAPAPELES (CON EL BOTÓN MÁGICO DE IMÁGENES) -->
         <LinearLayout android:id="@+id/layout_clipboard" android:layout_width="match_parent" android:layout_height="250dp" android:orientation="vertical" android:visibility="gone" android:background="#121212">
-            <LinearLayout android:layout_width="match_parent" android:layout_height="40dp" android:orientation="horizontal" android:padding="4dp" android:background="#1E1E1E">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="45dp" android:orientation="horizontal" android:padding="4dp" android:background="#1E1E1E">
                 <TextView android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:text="Portapapeles" android:textStyle="bold" android:gravity="center_vertical" android:paddingStart="12dp" android:textColor="#FFFFFF"/>
-                <Button android:tag="CLEAR_CLIPBOARD" android:text="🗑️ Limpiar" style="@style/KeyStyleAction" android:layout_width="wrap_content" android:layout_height="match_parent" android:layout_marginEnd="4dp" android:padding="4dp" />
-                <Button android:tag="MODE_LETTERS" android:text="❌ Cerrar" style="@style/KeyStyleAction" android:layout_width="wrap_content" android:layout_height="match_parent" android:padding="4dp" />
+                
+                <!-- EL BOTÓN PARA PEGAR CAPTURAS/IMÁGENES DEL CELULAR -->
+                <Button android:tag="SYSTEM_PASTE" android:text="📥 Pegar Copiado" style="@style/KeyStyleAction" android:layout_width="wrap_content" android:layout_height="match_parent" android:layout_marginEnd="4dp" android:padding="4dp" android:backgroundTint="#2196F3" android:textColor="#FFFFFF" />
+                
+                <Button android:tag="CLEAR_CLIPBOARD" android:text="🗑️" style="@style/KeyStyleAction" android:layout_width="wrap_content" android:layout_height="match_parent" android:layout_marginEnd="4dp" android:padding="4dp" />
+                <Button android:tag="MODE_LETTERS" android:text="❌" style="@style/KeyStyleAction" android:layout_width="wrap_content" android:layout_height="match_parent" android:padding="4dp" />
             </LinearLayout>
             <FrameLayout android:layout_width="match_parent" android:layout_height="match_parent">
                 <androidx.recyclerview.widget.RecyclerView android:id="@+id/keyboard_recycler_view" android:layout_width="match_parent" android:layout_height="match_parent" android:padding="4dp"/>
@@ -250,6 +254,7 @@
 
             <androidx.recyclerview.widget.RecyclerView android:id="@+id/rv_emojis_keyboard" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:padding="4dp" />
 
+            <!-- BARRA INFERIOR DE EMOJIS (CON LUPA INYECTADA) -->
             <LinearLayout android:layout_width="match_parent" android:layout_height="45dp" android:orientation="horizontal" android:background="#2C2C2C" android:padding="2dp">
                 <Button android:tag="MODE_LETTERS" android:text="ABC" style="@style/KeyStyleAction" android:layout_width="50dp" android:layout_height="match_parent" android:backgroundTint="#3A3A3A" android:textSize="12sp" android:layout_marginEnd="2dp"/>
                 
